@@ -1,7 +1,10 @@
-import { Activity, Calendar, DollarSign, LayoutGrid, Users } from 'lucide-react'
+import { Activity, Calendar, DollarSign, LayoutGrid, LogOut, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
+import { podeAcessar } from '@/auth/permissoes'
+import { useAuth } from '@/auth/useAuth'
 import { cn } from '@/lib/cn'
+import { PAPEL_LABEL } from '@/types/auth'
 
 const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
@@ -14,6 +17,11 @@ const NAV = [
 ] as const
 
 export function Sidebar() {
+  const { usuario, sair } = useAuth()
+  if (!usuario) return null
+
+  const itens = NAV.filter((item) => podeAcessar(usuario.papel, item.to))
+
   return (
     <aside className="flex w-[280px] shrink-0 flex-col bg-brand text-white">
       <div className="border-b border-white/10 px-6 py-7">
@@ -24,7 +32,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-col gap-1 p-4">
-        {NAV.map(({ to, label, icon: Icon }) => (
+        {itens.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
@@ -42,6 +50,19 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
+      <div className="mt-auto border-t border-white/10 p-4">
+        <p className="truncate text-[15px] font-medium text-white">{usuario.nome}</p>
+        <p className="text-sm text-white/70">{PAPEL_LABEL[usuario.papel]}</p>
+        <button
+          type="button"
+          onClick={sair}
+          className="mt-3 flex w-full items-center gap-2 rounded-card px-3 py-2 text-sm text-white/85 transition-colors hover:bg-white/10"
+        >
+          <LogOut size={16} />
+          Sair
+        </button>
+      </div>
     </aside>
   )
 }

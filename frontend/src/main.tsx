@@ -10,7 +10,13 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      retry: 1,
+      // Não insistir em 401/403: repetir uma requisição sem permissão só
+      // atrasa o redirecionamento para o login.
+      retry: (falhas, erro) => {
+        const status = (erro as { response?: { status?: number } })?.response?.status
+        if (status === 401 || status === 403) return false
+        return falhas < 1
+      },
       refetchOnWindowFocus: false,
     },
   },
