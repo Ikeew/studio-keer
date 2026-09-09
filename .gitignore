@@ -23,3 +23,6 @@ dist/
 
 # Config local de ferramentas (por máquina, não versionar)
 .claude/settings.local.json
+
+# Cache de build do TypeScript
+*.tsbuildinfo
