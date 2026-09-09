@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: keer
+      POSTGRES_PASSWORD: keer
+      POSTGRES_DB: keer
+    ports:
+      # Parametrizado porque é comum já haver um Postgres ocupando a 5432 na
+      # máquina. Se a subida falhar com "address already in use", defina
+      # POSTGRES_PORT no .env da raiz (ex.: 5433) — nada mais muda, os outros
+      # serviços falam com o banco pela rede interna do compose.
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # `pg_isready` responde antes do Postgres aceitar conexões de verdade
+      # durante a inicialização. O -U evita falso positivo com o usuário root.
+      test: ['CMD-SHELL', 'pg_isready -U keer -d keer']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://keer:keer@db:5432/keer
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-trocar-em-producao-min-32-chars}
+      ENVIRONMENT: local
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8000/api/v1
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      # Mantém o node_modules do container: o do host pode ter binário
+      # compilado para outra plataforma.
+      - /app/node_modules
+    depends_on:
+      - backend
+    command: npm run dev
+
+volumes:
+  pgdata:

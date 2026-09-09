@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+*.local
+
+# Ambiente — nunca versionar segredo
+.env
+.env.*
+!.env.example
+
+# Editores e SO
+.vscode/
+.idea/
+.DS_Store
+
+# Config local de ferramentas (por máquina, não versionar)
+.claude/settings.local.json
