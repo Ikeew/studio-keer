@@ -1,0 +1,27 @@
+[project]
+name = "studio-keer-backend"
+version = "0.1.0"
+description = "API de agendamento do Studio Keer Pilates e Fisioterapia"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14.0",
+    "psycopg[binary]>=3.2.3",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "pyjwt>=2.10.0",
+    "passlib[bcrypt]>=1.7.4",
+    # passlib 1.7.4 lê bcrypt.__about__, removido no bcrypt 4.1. Sem este pin
+    # o login funciona mas cospe um AttributeError em warning a cada hash.
+    "bcrypt==4.0.1",
+    "python-multipart>=0.0.20",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
