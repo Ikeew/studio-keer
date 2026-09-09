@@ -79,6 +79,9 @@ npm run dev
 
 ## Verificações
 
+Os testes usam um Postgres real (não SQLite) e criam sozinhos o database
+`keer_test` — basta ter o banco no ar (`docker compose up db`).
+
 ```bash
 cd backend
 uv run pytest                 # testes
@@ -124,7 +127,7 @@ studio-keer/
 | Fase | Entrega | Estado |
 |---|---|---|
 | **0** | Fundação: build, banco, migrations, shell de navegação | **concluída** |
-| 1 | Autenticação JWT e perfis de acesso | |
+| **1** | Autenticação JWT e perfis de acesso | **concluída** |
 | 2 | Cadastro de pacientes e de serviços | |
 | 3 | Agenda semanal: sessões, reservas, presença, falta, remarcação | |
 | 4 | Matrículas e geração recorrente de sessões | |
@@ -133,7 +136,36 @@ studio-keer/
 | 7 | Testes de ponta a ponta, seed de demonstração, deploy | |
 
 Cada fase entrega algo demonstrável. As decisões de arquitetura e de escopo
-estão em [CLAUDE.md](CLAUDE.md).
+estão em [CLAUDE.md](CLAUDE.md); as de infraestrutura e segurança, em
+[docs/decisoes-tecnicas.md](docs/decisoes-tecnicas.md).
+
+## Criando os usuários de acesso
+
+Depois de subir o sistema pela primeira vez, crie os três perfis. As senhas
+vêm do ambiente — **nenhuma senha fica no repositório**:
+
+```bash
+docker compose exec \
+  -e SEED_ADMIN_SENHA='...' \
+  -e SEED_RECEPCAO_SENHA='...' \
+  -e SEED_INSTRUTOR_SENHA='...' \
+  backend python -m app.cli seed-usuarios
+```
+
+Para desenvolvimento, `--gerar-senhas` sorteia e imprime as senhas de quem não
+tiver variável definida:
+
+```bash
+docker compose exec backend python -m app.cli seed-usuarios --gerar-senhas
+```
+
+O comando é idempotente e **não** sobrescreve a senha de quem já existe.
+
+| E-mail | Perfil | Enxerga |
+|---|---|---|
+| `admin@studiokeer.com.br` | Proprietária | Tudo |
+| `recepcao@studiokeer.com.br` | Recepção | Tudo exceto administração de usuários |
+| `instrutor@studiokeer.com.br` | Instrutor | Só a agenda, somente leitura |
 
 ## Escopo
 

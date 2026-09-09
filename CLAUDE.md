@@ -98,6 +98,21 @@ Prontuário, evolução e atestado não entram nesta entrega. São dados sensív
 sob a LGPD e exigem tratamento próprio. Não adicione esses campos a `patients`
 "só para adiantar": isso muda a classificação de risco da tabela inteira.
 
+### Autenticação
+
+Token JWT de 12 horas, sem refresh token. O papel vai no payload mas a
+autorização **relê o banco**, para que desativar ou rebaixar alguém tenha
+efeito imediato em vez de esperar o token expirar.
+
+Rota nova precisa de proteção **nos dois lados**: `require_papel(...)` no
+backend (é a que vale) e `ACESSO_POR_ROTA` no frontend (só esconde o menu).
+Esconder item de menu não é controle de acesso.
+
+Usuário de teste se cria por `python -m app.cli seed-usuarios`, com senha do
+ambiente — **nunca** por migration, e **nunca** com senha no repositório.
+
+O raciocínio completo dessas escolhas está em `docs/decisoes-tecnicas.md`.
+
 ## Convenções de código
 
 ### Backend
