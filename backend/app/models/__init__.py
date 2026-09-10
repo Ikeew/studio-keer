@@ -6,7 +6,13 @@ falta nesta lista some silenciosamente do autogenerate.
 """
 
 from app.models.booking import Booking, OrigemReserva, StatusReserva
-from app.models.configuracao import Configuracao, HorarioFuncionamento
+from app.models.configuracao import Configuracao, HorarioFuncionamento, JanelaReposicao
+from app.models.enrollment import (
+    Blackout,
+    Enrollment,
+    EnrollmentHorario,
+    StatusMatricula,
+)
 from app.models.package import Package, StatusPacote
 from app.models.patient import EstadoCivil, Patient, Sexo
 from app.models.service import ModeloCobranca, Service
@@ -14,10 +20,14 @@ from app.models.session import Session, StatusSessao
 from app.models.user import Papel, User
 
 __all__ = [
+    "Blackout",
     "Booking",
     "Configuracao",
+    "Enrollment",
+    "EnrollmentHorario",
     "EstadoCivil",
     "HorarioFuncionamento",
+    "JanelaReposicao",
     "ModeloCobranca",
     "OrigemReserva",
     "Package",
@@ -26,6 +36,7 @@ __all__ = [
     "Service",
     "Session",
     "Sexo",
+    "StatusMatricula",
     "StatusPacote",
     "StatusReserva",
     "StatusSessao",

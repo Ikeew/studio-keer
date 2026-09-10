@@ -115,13 +115,32 @@ class Booking(Base, TimestampMixin):
             "substitui_booking_id IS NULL OR substitui_booking_id <> id",
             name="nao_substitui_a_si_mesma",
         ),
+        # Uma reserva pertence a no máximo um contrato.
+        CheckConstraint(
+            "enrollment_id IS NULL OR package_id IS NULL",
+            name="um_contrato_no_maximo",
+        ),
+        # IDEMPOTÊNCIA DO GERADOR: uma matrícula gera no máximo UMA reserva
+        # por sessão. Rodar o gerador duas vezes não duplica — a segunda
+        # tentativa bate neste índice, mesmo que a primeira execução tenha
+        # sido interrompida no meio.
+        Index(
+            "ix_bookings_matricula_por_sessao",
+            "enrollment_id",
+            "session_id",
+            unique=True,
+            postgresql_where=text(f"enrollment_id IS NOT NULL AND {_SQL_OCUPA_VAGA}"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     session_id: Mapped[int] = mapped_column(ForeignKey("sessions.id"), nullable=False, index=True)
     patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False)
-    # Consome saldo de um pacote vendido. Nulo em reserva avulsa.
-    # `enrollment_id` chega na Fase 4, junto com as matrículas.
+    # A reserva pertence a no máximo UM contrato:
+    #   enrollment_id -> nasceu de uma mensalidade com horário fixo
+    #   package_id    -> consome saldo de um pacote vendido
+    #   ambos nulos   -> avulsa ou avaliação
+    enrollment_id: Mapped[int | None] = mapped_column(ForeignKey("enrollments.id"), nullable=True)
     package_id: Mapped[int | None] = mapped_column(ForeignKey("packages.id"), nullable=True)
 
     posicao: Mapped[int] = mapped_column(SmallInteger, nullable=False)
