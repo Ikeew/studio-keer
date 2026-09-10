@@ -172,6 +172,7 @@ def criar_reserva(dados: BookingCreate, db: Db, usuario: CurrentUser) -> Booking
         criado_por_id=usuario.id,
         origem=dados.origem,
         package_id=dados.package_id,
+        substitui_booking_id=dados.substitui_booking_id,
     )
     db.commit()
     return BookingRead.model_validate(reserva)

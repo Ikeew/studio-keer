@@ -96,6 +96,10 @@ class BookingCreate(BaseModel):
     patient_id: int
     origem: OrigemReserva = OrigemReserva.AVULSA
     package_id: int | None = None
+    # Liga a reposição à falta que ela cobre. Sem isso a falta continuaria
+    # aparecendo como pendente para sempre, e o índice único que impede repor
+    # a mesma falta duas vezes nunca entraria em ação.
+    substitui_booking_id: int | None = None
 
 
 class BookingCancel(BaseModel):
