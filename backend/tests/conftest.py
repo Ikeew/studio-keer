@@ -17,6 +17,7 @@ from app.core.security import hash_senha
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.models.service import ModeloCobranca, Service
 from app.models.user import Papel, User
 
 settings = get_settings()
@@ -116,6 +117,26 @@ def recepcao(db: Session) -> User:
 @pytest.fixture
 def instrutor(db: Session) -> User:
     return criar_usuario(db, Papel.INSTRUTOR)
+
+
+def criar_servico(
+    db: Session,
+    *,
+    nome: str = "Pilates",
+    modelo: ModeloCobranca = ModeloCobranca.MENSALIDADE,
+    capacidade: int = 4,
+) -> Service:
+    servico = Service(
+        nome=nome,
+        duracao_min=60,
+        preco_centavos=10_000,
+        capacidade_padrao=capacidade,
+        cor="#06B6D4",
+        modelo_cobranca=modelo,
+    )
+    db.add(servico)
+    db.flush()
+    return servico
 
 
 def login(client: TestClient, email: str, senha: str = SENHA_PADRAO) -> str:
