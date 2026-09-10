@@ -1,10 +1,10 @@
 from datetime import date
 from enum import StrEnum
 
-from sqlalchemy import Boolean, Date, String, Text
+from sqlalchemy import Boolean, Date, Index, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, coluna_enum
 
 
 class Sexo(StrEnum):
@@ -33,6 +33,28 @@ class Patient(Base, TimestampMixin):
     """
 
     __tablename__ = "patients"
+    __table_args__ = (
+        # Declarados aqui, e não só na migration, porque o autogenerate compara
+        # o banco com Base.metadata: índice que existe no banco mas não no
+        # model é interpretado como sobra e o Alembic gera um DROP para ele na
+        # PRÓXIMA migration — silenciosamente.
+        #
+        # CPF é opcional, então a unicidade é PARCIAL: "sem CPF" nunca colide
+        # com "sem CPF".
+        Index(
+            "ix_patients_cpf_unico",
+            "cpf",
+            unique=True,
+            postgresql_where=text("cpf IS NOT NULL"),
+        ),
+        # Busca por nome sem diferenciar maiúsculas nem acento de posição.
+        # Sem o trigram, o ILIKE '%termo%' varre a tabela inteira.
+        Index(
+            "ix_patients_nome_trgm",
+            text("lower(nome_completo) gin_trgm_ops"),
+            postgresql_using="gin",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
@@ -41,9 +63,11 @@ class Patient(Base, TimestampMixin):
     # Único quando informado — daí o índice único parcial na migration.
     cpf: Mapped[str | None] = mapped_column(String(11), nullable=True)
     data_nascimento: Mapped[date | None] = mapped_column(Date, nullable=True)
-    sexo: Mapped[Sexo] = mapped_column(String(16), default=Sexo.NAO_INFORMADO, nullable=False)
+    sexo: Mapped[Sexo] = mapped_column(
+        coluna_enum(Sexo), default=Sexo.NAO_INFORMADO, nullable=False
+    )
     estado_civil: Mapped[EstadoCivil] = mapped_column(
-        String(16), default=EstadoCivil.NAO_INFORMADO, nullable=False
+        coluna_enum(EstadoCivil), default=EstadoCivil.NAO_INFORMADO, nullable=False
     )
     profissao: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
