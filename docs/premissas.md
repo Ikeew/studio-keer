@@ -22,7 +22,7 @@ Levar este arquivo para a reunião. Ao confirmar ou refutar um item, atualize o
 | # | Assunto | Status |
 |---|---|---|
 | P1 | Capacidade das turmas | ✅ **Fechado** — 4 em turma, 1 na avaliação |
-| P2 | Mensalidade (Pilates) | ✅ Vencimento confirmado · ⏳ ciclo (só Fase 5) |
+| P2 | Mensalidade (Pilates) | ✅ Vencimento · ⏳ **ciclo: aniversário adotado** |
 | P3 | Pacote de sessões (Fisioterapia) | ✅ **Fechado** — negociado por venda |
 | P4 | Prazo de cancelamento (24h) | ❌ **Descartada** — premissa do time, não da cliente |
 | P5 | Reposição de falta | ✅ **Contradição resolvida** |
@@ -85,7 +85,13 @@ Duas leituras, para um paciente que começou em **15/03**:
 | **(a) Calendário** | 01/03 a 31/03 | dia 15 |
 | **(b) Aniversário** | 15/03 a 14/04 | dia 15 |
 
-**Adotamos (b), o ciclo por aniversário**, e está documentado como premissa.
+**Adotamos (b), o ciclo por aniversário**, e está **implementado** como
+premissa a confirmar.
+
+A decisão vive num arquivo só: `app/services/ciclo_service.py`. Nenhum outro
+ponto do código calcula data de competência ou de vencimento. Trocar para
+calendário é reescrever `_competencia_do_mes`; o resto do sistema não sabe
+que ciclo existe.
 
 **Por quê:** é a leitura consistente com o que ela já respondeu. Ela disse
 "mês cheio a partir do dia em que começou" e "cada um no seu dia". Se fosse

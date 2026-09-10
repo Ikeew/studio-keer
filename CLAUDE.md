@@ -110,6 +110,18 @@ contradição foi resolvida (P5): `reposicao_exige_justificativa = true` e
 `falta_consome_sessao_do_pacote = false` são registros no banco, não
 constantes.
 
+### Ciclo de cobrança vive em um arquivo só
+
+`app/services/ciclo_service.py` é o ÚNICO lugar que sabe como um mês de
+mensalidade começa e termina. Adotamos o ciclo por **aniversário** (premissa a
+confirmar, `docs/premissas.md` P2); trocar para calendário é reescrever
+`_competencia_do_mes` e nada mais.
+
+**Nunca calcule data de vencimento fora dele.** Use `dia_seguro()` para
+qualquer data de dia fixo: quem começou dia 31 vence 30 em abril e 28 em
+fevereiro, e `date(2026, 4, 31)` levanta ValueError. É bug silencioso — passa
+em todo teste escrito em março.
+
 ### Janela de reposição ≠ ciclo de cobrança
 
 Os dois só se parecem por usarem a palavra "mês", e acoplá-los foi considerado
