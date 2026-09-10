@@ -106,6 +106,15 @@ export function Login() {
             {isSubmitting ? 'Entrando…' : 'Entrar'}
           </button>
         </form>
+
+        {/* Exigência do projeto: ninguém pode confundir os dados de
+            demonstração com informação real de paciente. */}
+        <p className="mt-6 rounded-card bg-subtle px-4 py-3 text-sm text-muted">
+          <strong className="text-ink">Ambiente de demonstração.</strong> Os
+          pacientes, agendamentos e valores deste sistema são{' '}
+          <strong className="text-ink">fictícios</strong>, criados para
+          avaliação acadêmica. Nenhum CPF é válido e nenhum telefone existe.
+        </p>
       </div>
     </div>
   )

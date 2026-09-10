@@ -4,6 +4,8 @@ Uso:
     uv run python -m app.cli seed-usuarios
     uv run python -m app.cli seed-configuracao
     uv run python -m app.cli seed-servicos
+    uv run python -m app.cli seed-demo          # dados fictícios de demonstração
+    uv run python -m app.cli limpar-demo
 
 As senhas vêm SEMPRE de variável de ambiente. Nenhuma senha no repositório,
 e nada disso em migration: migration é versionamento de schema, e uma que
@@ -206,6 +208,55 @@ def seed_servicos() -> None:
     print("  A cliente ainda não informou valores reais (docs/premissas.md, P3).\n")
 
 
+def seed_demo() -> None:
+    """Popula o studio de demonstração com dados FICTÍCIOS.
+
+    Idempotente: limpa o que criou antes e recria. Todas as datas são
+    relativas a hoje, então o resultado continua fazendo sentido em qualquer
+    dia da apresentação.
+    """
+    from app.services import demo_service
+
+    db: Session = SessionLocal()
+    try:
+        r = demo_service.semear(db)
+    finally:
+        db.close()
+
+    print("  Pacientes .................. ", r.pacientes)
+    print("  Matrículas ................. ", r.matriculas)
+    print("  Sessões .................... ", r.sessoes)
+    print("  Reservas ................... ", r.reservas)
+    print("  Presenças registradas ...... ", r.presencas)
+    print("  Faltas justificadas ........ ", r.faltas_justificadas)
+    print("  Faltas não justificadas .... ", r.faltas_nao_justificadas)
+    print("  Reposições já feitas ....... ", r.reposicoes_feitas)
+    print("  Cancelamentos com motivo ... ", r.cancelamentos)
+    print("  Pacotes de fisioterapia .... ", r.pacotes)
+    print("  Cobranças pagas ............ ", r.cobrancas_pagas)
+    print("  Cobranças pendentes ........ ", r.cobrancas_pendentes)
+    print("  Cobranças vencidas ......... ", r.cobrancas_vencidas)
+    for aviso in r.avisos:
+        print(f"  ! {aviso}")
+    print()
+    print("  ATENÇÃO: todos estes dados são FICTÍCIOS.")
+    print("  Nenhum CPF é válido; os telefones usam prefixo reservado.")
+    print()
+
+
+def limpar_demo() -> None:
+    """Remove tudo que o seed de demonstração criou."""
+    from app.services import demo_service
+
+    db: Session = SessionLocal()
+    try:
+        contagem = demo_service.limpar(db)
+    finally:
+        db.close()
+    for chave, qtd in contagem.items():
+        print(f"  - {chave:12} {qtd}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli", description=__doc__)
     sub = parser.add_subparsers(dest="comando", required=True)
@@ -219,6 +270,8 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("seed-configuracao", help="cria a configuração e a grade de horários")
     sub.add_parser("seed-servicos", help="cria os serviços de demonstração")
+    sub.add_parser("seed-demo", help="popula o studio de demonstração (dados fictícios)")
+    sub.add_parser("limpar-demo", help="remove os dados de demonstração")
 
     args = parser.parse_args(argv)
     if args.comando == "seed-usuarios":
@@ -227,6 +280,10 @@ def main(argv: list[str] | None = None) -> int:
         seed_configuracao()
     elif args.comando == "seed-servicos":
         seed_servicos()
+    elif args.comando == "seed-demo":
+        seed_demo()
+    elif args.comando == "limpar-demo":
+        limpar_demo()
     return 0
 
 
