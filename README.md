@@ -129,7 +129,7 @@ studio-keer/
 | **0** | Fundação: build, banco, migrations, shell de navegação | **concluída** |
 | **1** | Autenticação JWT e perfis de acesso | **concluída** |
 | **2** | Cadastro de pacientes e de serviços | **concluída** |
-| 3 | Agenda semanal: sessões, reservas, presença, falta, remarcação | |
+| **3** | Agenda semanal: sessões, reservas, presença, falta, remarcação | **concluída** |
 | 4 | Matrículas e geração recorrente de sessões | |
 | 5 | Financeiro: mensalidades, cobranças avulsas, baixa de pagamento | |
 | 6 | Dashboard com indicadores reais e agenda do instrutor | |
