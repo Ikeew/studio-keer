@@ -1,9 +1,25 @@
 from datetime import time
+from enum import StrEnum
 
 from sqlalchemy import Boolean, CheckConstraint, Integer, SmallInteger, Time
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, coluna_enum
+
+
+class JanelaReposicao(StrEnum):
+    """Até quando uma falta pode ser reposta.
+
+    Decisão OPERACIONAL, separada do ciclo de cobrança (que é financeiro).
+    """
+
+    #: Até o fim do mês do calendário em que a falta ocorreu. Padrão.
+    MES_CALENDARIO = "mes_calendario"
+    #: Até o fim do ciclo de cobrança do próprio paciente. Só se a cliente
+    #: confirmar que pensa a reposição atrelada ao vencimento dele.
+    CICLO_DO_PACIENTE = "ciclo_do_paciente"
+    #: Sem prazo — repõe quando houver vaga.
+    SEM_PRAZO = "sem_prazo"
 
 
 class Configuracao(Base, TimestampMixin):
@@ -27,8 +43,22 @@ class Configuracao(Base, TimestampMixin):
     reposicao_exige_justificativa: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False
     )
-    # Premissa NÃO validada (P5).
-    reposicao_prazo_mesmo_mes: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # JANELA DE REPOSIÇÃO — operacional, e INDEPENDENTE do ciclo de cobrança.
+    #
+    # Os dois só se parecem por usarem a palavra "mês". O ciclo de cobrança
+    # define competência e vencimento (financeiro, Fase 5); a janela de
+    # reposição define quanto tempo o paciente tem para remarcar a aula
+    # perdida. Acoplar os dois foi considerado e DESCARTADO — ver
+    # docs/premissas.md (P2 e P5).
+    #
+    # Padrão MES_CALENDARIO: quem diz "dentro do mesmo mês" quase sempre quer
+    # dizer mês do calendário. Trocar é editar este registro, sem migration.
+    janela_reposicao: Mapped[JanelaReposicao] = mapped_column(
+        coluna_enum(JanelaReposicao),
+        default=JanelaReposicao.MES_CALENDARIO,
+        nullable=False,
+    )
     # Confirmado pela cliente (P5): falta NÃO desconta do saldo do pacote.
     # É por isso que a validade vira a única trava do pacote.
     falta_consome_sessao_do_pacote: Mapped[bool] = mapped_column(

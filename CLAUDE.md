@@ -110,6 +110,40 @@ contradição foi resolvida (P5): `reposicao_exige_justificativa = true` e
 `falta_consome_sessao_do_pacote = false` são registros no banco, não
 constantes.
 
+### Janela de reposição ≠ ciclo de cobrança
+
+Os dois só se parecem por usarem a palavra "mês", e acoplá-los foi considerado
+e descartado (`docs/premissas.md`, P2).
+
+- **Ciclo de cobrança** é financeiro: competência e vencimento. Fase 5.
+- **Janela de reposição** é operacional: quanto tempo o paciente tem para
+  remarcar. Vive em `configuracao.janela_reposicao`, com padrão
+  `mes_calendario`.
+
+### Gerador da grade: idempotente e com horizonte
+
+`gerar_grade` materializa **8 semanas** à frente. Curto demais quebra a
+reposição (a Fase 3 definiu que a disponibilidade só enxerga sessão
+materializada); longo demais vira lixo quando a matrícula muda.
+
+Rodar duas vezes não duplica: sessão é reaproveitada por equivalência, e o
+índice único parcial `(enrollment_id, session_id)` garante no banco que uma
+matrícula tem no máximo uma reserva por sessão — inclusive após execução
+interrompida no meio.
+
+**O gerador não fura capacidade.** Se a turma encheu por avulsas, ele reporta
+em `sem_vaga` em vez de forçar.
+
+### Encerrar e suspender: futuro sim, passado nunca
+
+Reservas **futuras** da matrícula são canceladas (lugar ocupado por quem não
+vem mais bloqueia reposição). Reservas com **presença ou falta registrada
+ficam intactas** — são fato consumado, e sumir com a falta apagaria o direito
+à reposição.
+
+Reativar reverifica a capacidade: o lugar pode ter sido vendido enquanto a
+matrícula esteve suspensa.
+
 ### Pacote: negociado por venda, e o saldo tem definição exata
 
 Um pacote é **negociado no ato da venda** — a doutora define sessões, preço e

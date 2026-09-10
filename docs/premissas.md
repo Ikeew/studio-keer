@@ -22,7 +22,7 @@ Levar este arquivo para a reunião. Ao confirmar ou refutar um item, atualize o
 | # | Assunto | Status |
 |---|---|---|
 | P1 | Capacidade das turmas | ✅ **Fechado** — 4 em turma, 1 na avaliação |
-| P2 | Mensalidade (Pilates) | ✅ Vencimento confirmado · ⏳ **ciclo de referência** |
+| P2 | Mensalidade (Pilates) | ✅ Vencimento confirmado · ⏳ ciclo (só Fase 5) |
 | P3 | Pacote de sessões (Fisioterapia) | ✅ **Fechado** — negociado por venda |
 | P4 | Prazo de cancelamento (24h) | ❌ **Descartada** — premissa do time, não da cliente |
 | P5 | Reposição de falta | ✅ **Contradição resolvida** |
@@ -95,14 +95,31 @@ aula — que é exatamente o proporcional que ela disse **não** fazer.
 **Não é pendência bloqueante.** O Financeiro é a Fase 5, e a decisão está
 tomada com justificativa.
 
-**Onde isso aparece no sistema, quando chegar a hora:**
-- Geração da cobrança mensal, que precisa saber onde um ciclo termina.
-- O significado de "mesmo mês" na regra de reposição (P5). Com ciclo por
-  aniversário, "repor dentro do mês" passa a significar "dentro do ciclo do
-  paciente", e não "até o dia 31".
+### A janela de reposição NÃO depende disto
 
-Esse segundo ponto é o que faz a decisão importar antes do Financeiro: a
-reposição é Fase 4.
+Uma versão anterior deste documento concluía que, com ciclo por aniversário,
+"repor dentro do mês" passaria a significar "dentro do ciclo do paciente".
+**Isso foi considerado e descartado**: acoplava duas coisas que só se parecem
+por usarem a palavra "mês".
+
+| | O que é | Onde vive |
+|---|---|---|
+| **Ciclo de cobrança** | Competência e vencimento | Financeiro (Fase 5) |
+| **Janela de reposição** | Quanto tempo o paciente tem para remarcar | Operação (Fase 4) |
+
+Quando a cliente disse "dentro do mesmo mês", falava como pessoa fala — e
+pessoa que diz "mesmo mês" quase sempre quer dizer **mês do calendário**. Nada
+indica que ela pense a reposição atrelada à data de vencimento de cada aluno.
+
+`configuracao.janela_reposicao` é configuração própria, com três valores:
+`mes_calendario` (padrão), `ciclo_do_paciente` e `sem_prazo`. Trocar é editar
+um registro, sem migration, caso ela confirme o contrário.
+
+**Ganho prático:** a Fase 4 deixou de depender desta pendência. O ciclo de
+cobrança voltou a ser problema só da Fase 5.
+
+**Onde isto ainda importa:** geração da cobrança mensal, que precisa saber
+onde um ciclo termina.
 
 **⏳ Ainda em aberto, de menor peso:**
 - Quais frequências são vendidas (1x, 2x, 3x, 5x por semana)?
