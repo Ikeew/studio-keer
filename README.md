@@ -130,7 +130,7 @@ studio-keer/
 | **1** | Autenticação JWT e perfis de acesso | **concluída** |
 | **2** | Cadastro de pacientes e de serviços | **concluída** |
 | **3** | Agenda semanal: sessões, reservas, presença, falta, remarcação | **concluída** |
-| 4 | Matrículas e geração recorrente de sessões | |
+| **4** | Matrículas, geração recorrente e reposições pendentes | **concluída** |
 | 5 | Financeiro: mensalidades, cobranças avulsas, baixa de pagamento | |
 | 6 | Dashboard com indicadores reais e agenda do instrutor | |
 | 7 | Testes de ponta a ponta, seed de demonstração, deploy | |
