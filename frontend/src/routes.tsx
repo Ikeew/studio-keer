@@ -9,6 +9,7 @@ import { Dashboard } from '@/pages/Dashboard'
 import { Financeiro } from '@/pages/Financeiro'
 import { Login } from '@/pages/Login'
 import { Pacientes } from '@/pages/Pacientes'
+import { Reposicoes } from '@/pages/Reposicoes'
 import { RaizRedirect } from '@/pages/RaizRedirect'
 
 export const router = createBrowserRouter([
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
               { path: 'dashboard', element: <Dashboard /> },
               { path: 'agenda', element: <Agenda /> },
               { path: 'pacientes', element: <Pacientes /> },
+              { path: 'reposicoes', element: <Reposicoes /> },
               { path: 'atividades', element: <Atividades /> },
               { path: 'financeiro', element: <Financeiro /> },
             ],

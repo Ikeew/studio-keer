@@ -46,11 +46,15 @@ export function useSessoesComVaga(params: {
   })
 }
 
-function useAcaoNaAgenda<TVars>(fn: (v: TVars) => Promise<unknown>) {
+function useAcaoNaAgenda<TVars, TResult>(fn: (v: TVars) => Promise<TResult>) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: fn,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['agenda'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agenda'] })
+      // Marcar falta ou agendar reposição muda a lista de pendentes.
+      qc.invalidateQueries({ queryKey: ['reposicoes'] })
+    },
   })
 }
 
@@ -67,8 +71,13 @@ export function useCriarSessao() {
 
 export function useCriarReserva() {
   return useAcaoNaAgenda(
-    async (v: { session_id: number; patient_id: number; origem?: Origem }) =>
-      (await api.post('/bookings', v)).data,
+    async (v: {
+      session_id: number
+      patient_id: number
+      origem?: Origem
+      /** Liga a reposição à falta que ela cobre. */
+      substitui_booking_id?: number
+    }) => (await api.post('/bookings', v)).data,
   )
 }
 

@@ -12,6 +12,8 @@ export const ACESSO_POR_ROTA: Record<string, readonly Papel[]> = {
   // O instrutor entra direto na agenda: é a única tela dele, somente leitura.
   '/agenda': ['admin', 'recepcao', 'instrutor'],
   '/pacientes': ['admin', 'recepcao'],
+  // Reposições é operação de balcão: recepção e proprietária.
+  '/reposicoes': ['admin', 'recepcao'],
   '/atividades': ['admin', 'recepcao'],
   // Controle financeiro é da proprietária e da recepção, que registra os
   // pagamentos. O instrutor não vê valores.

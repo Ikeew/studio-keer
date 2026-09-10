@@ -1,4 +1,12 @@
-import { Activity, Calendar, DollarSign, LayoutGrid, LogOut, Users } from 'lucide-react'
+import {
+  Activity,
+  Calendar,
+  CalendarClock,
+  DollarSign,
+  LayoutGrid,
+  LogOut,
+  Users,
+} from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 import { podeAcessar } from '@/auth/permissoes'
@@ -11,6 +19,9 @@ const NAV = [
   { to: '/agenda', label: 'Agendamentos', icon: Calendar },
   // Os prints dizem "Clientes"; a nomenclatura acordada da interface é
   // "Paciente". Ver referencia-figma/README.md.
+  // Logo abaixo da agenda: é onde a recepção resolve o que hoje fica na
+  // cabeça da proprietária.
+  { to: '/reposicoes', label: 'Reposições', icon: CalendarClock },
   { to: '/pacientes', label: 'Pacientes', icon: Users },
   { to: '/atividades', label: 'Atividades', icon: Activity },
   { to: '/financeiro', label: 'Financeiro', icon: DollarSign },

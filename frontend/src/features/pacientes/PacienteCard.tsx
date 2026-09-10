@@ -10,6 +10,7 @@ import {
 type Props = {
   paciente: Paciente
   onEditar: (p: Paciente) => void
+  onVerMatriculas: (p: Paciente) => void
 }
 
 function Linha({ rotulo, valor }: { rotulo: string; valor: string }) {
@@ -21,7 +22,7 @@ function Linha({ rotulo, valor }: { rotulo: string; valor: string }) {
   )
 }
 
-export function PacienteCard({ paciente, onEditar }: Props) {
+export function PacienteCard({ paciente, onEditar, onVerMatriculas }: Props) {
   return (
     <article className="flex flex-col rounded-card border border-edge bg-surface p-6 shadow-card">
       <div className="mb-4 flex items-start justify-between">
@@ -85,13 +86,20 @@ export function PacienteCard({ paciente, onEditar }: Props) {
 
       {/* mt-auto empurra o bloco para a base do card: sem isso, cards de
           alturas diferentes na mesma linha ficam com os botões desalinhados. */}
-      <div className="mt-auto pt-5">
+      <div className="mt-auto flex gap-2 pt-5">
         <button
           type="button"
           onClick={() => onEditar(paciente)}
-          className="w-full rounded-card bg-edge py-3 text-[15px] font-medium transition-colors hover:bg-edge/70"
+          className="flex-1 rounded-card bg-edge py-3 text-[15px] font-medium transition-colors hover:bg-edge/70"
         >
-          Editar Paciente
+          Editar
+        </button>
+        <button
+          type="button"
+          onClick={() => onVerMatriculas(paciente)}
+          className="flex-1 rounded-card bg-edge py-3 text-[15px] font-medium transition-colors hover:bg-edge/70"
+        >
+          Matrículas
         </button>
       </div>
     </article>

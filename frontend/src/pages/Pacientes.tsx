@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { PacienteCard } from '@/features/pacientes/PacienteCard'
 import { PacienteForm } from '@/features/pacientes/PacienteForm'
+import { PainelDeMatriculas } from '@/features/matriculas/PainelDeMatriculas'
 import type { Paciente } from '@/types/paciente'
 
 const POR_PAGINA = 12
@@ -16,6 +17,7 @@ export function Pacientes() {
   const [buscaAplicada, setBuscaAplicada] = useState('')
   const [pagina, setPagina] = useState(1)
   const [emEdicao, setEmEdicao] = useState<Paciente | null>(null)
+  const [vendoMatriculas, setVendoMatriculas] = useState<Paciente | null>(null)
   const [criando, setCriando] = useState(false)
 
   // Debounce: sem isso, cada tecla dispara uma requisição.
@@ -81,7 +83,12 @@ export function Pacientes() {
         <>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
             {data.itens.map((p) => (
-              <PacienteCard key={p.id} paciente={p} onEditar={setEmEdicao} />
+              <PacienteCard
+                key={p.id}
+                paciente={p}
+                onEditar={setEmEdicao}
+                onVerMatriculas={setVendoMatriculas}
+              />
             ))}
           </div>
 
@@ -116,6 +123,14 @@ export function Pacientes() {
 
       <Modal aberto={criando} titulo="Novo Paciente" onFechar={() => setCriando(false)}>
         <PacienteForm onPronto={() => setCriando(false)} />
+      </Modal>
+
+      <Modal
+        aberto={vendoMatriculas !== null}
+        titulo={vendoMatriculas ? `Matrículas de ${vendoMatriculas.nome_completo}` : ''}
+        onFechar={() => setVendoMatriculas(null)}
+      >
+        {vendoMatriculas && <PainelDeMatriculas paciente={vendoMatriculas} />}
       </Modal>
 
       <Modal
