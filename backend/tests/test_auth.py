@@ -103,12 +103,45 @@ class TestTokenInvalido:
     def test_token_com_assinatura_adulterada_e_401(
         self, client: TestClient, recepcao: User
     ) -> None:
+        """O payload continua legível, mas a assinatura não confere mais.
+
+        A adulteração é no MEIO da assinatura, e não no último caractere.
+        Base64url codifica em blocos de 6 bits: o último caractere carrega
+        bits de padding que a decodificação ignora, então trocá-lo deixa a
+        assinatura IDÊNTICA em cerca de 8% dos tokens.
+
+        Esta era a versão anterior do teste, e ela falhava de forma
+        intermitente — pior que falhar sempre, porque nas outras vezes dava
+        falsa segurança de que a validação estava coberta.
+        """
         token = login(client, recepcao.email)
-        # Corrompe o último caractere: o payload continua legível, mas a
-        # assinatura não confere mais.
-        adulterado = token[:-1] + ("a" if token[-1] != "a" else "b")
+        cabecalho, payload, assinatura = token.split(".")
+        meio = len(assinatura) // 2
+        trocado = "a" if assinatura[meio] != "a" else "b"
+        adulterado = f"{cabecalho}.{payload}.{assinatura[:meio]}{trocado}{assinatura[meio + 1 :]}"
+        assert adulterado != token
 
         r = client.get("/api/v1/auth/me", headers=auth(adulterado))
+
+        assert r.status_code == 401
+
+    def test_payload_adulterado_e_401(self, client: TestClient, recepcao: User) -> None:
+        """O ataque real: reescrever o papel dentro do token.
+
+        Sem assinatura válida o token é recusado antes de qualquer coisa —
+        é a primeira barreira, antes mesmo da releitura do papel no banco.
+        """
+        import base64
+        import json
+
+        token = login(client, recepcao.email)
+        cabecalho, payload, assinatura = token.split(".")
+
+        dados = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+        dados["papel"] = "admin"
+        novo = base64.urlsafe_b64encode(json.dumps(dados).encode()).decode().rstrip("=")
+
+        r = client.get("/api/v1/auth/me", headers=auth(f"{cabecalho}.{novo}.{assinatura}"))
 
         assert r.status_code == 401
 
