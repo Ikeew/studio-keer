@@ -46,7 +46,9 @@ ignore = ["B008"]  # Depends() no default de argumento é o idioma do FastAPI
 [tool.ruff.lint.per-file-ignores]
 # Migrations são geradas pelo template do Alembic, que sempre importa `sa` e
 # `op` mesmo quando a revisão não usa os dois. Não vale editar arquivo gerado.
-"alembic/versions/*" = ["F401"]
+# E501 porque o autogenerate emite a expressão SQL de um CHECK numa linha só,
+# e o formatter não quebra string — quebrar à mão volta no próximo comando.
+"alembic/versions/*" = ["F401", "E501"]
 
 [tool.ruff.lint.isort]
 # Sem isto o ruff trata `alembic` como pacote local, por causa da pasta
