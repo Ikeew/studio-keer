@@ -2,6 +2,8 @@
 
 Uso:
     uv run python -m app.cli seed-usuarios
+    uv run python -m app.cli seed-configuracao
+    uv run python -m app.cli seed-servicos
 
 As senhas vêm SEMPRE de variável de ambiente. Nenhuma senha no repositório,
 e nada disso em migration: migration é versionamento de schema, e uma que
@@ -13,11 +15,15 @@ import argparse
 import os
 import secrets
 import sys
+from datetime import time
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.security import BCRYPT_MAX_BYTES, hash_senha
 from app.db.session import SessionLocal
+from app.models.configuracao import Configuracao, HorarioFuncionamento
+from app.models.service import ModeloCobranca, Service
 from app.models.user import Papel, User
 from app.services.auth_service import buscar_por_email
 
@@ -86,6 +92,120 @@ def seed_usuarios(gerar: bool) -> None:
         print()
 
 
+# Segunda a sábado, 06:00-21:00, pausa 12:00-14:00. Domingo fechado.
+# Confirmado pela cliente — ver docs/premissas.md (P6).
+# 0 = domingo … 6 = sábado.
+FUNCIONAMENTO = [
+    (0, False, time(6, 0), time(21, 0), None, None),  # domingo: fechado
+    (1, True, time(6, 0), time(21, 0), time(12, 0), time(14, 0)),
+    (2, True, time(6, 0), time(21, 0), time(12, 0), time(14, 0)),
+    (3, True, time(6, 0), time(21, 0), time(12, 0), time(14, 0)),
+    (4, True, time(6, 0), time(21, 0), time(12, 0), time(14, 0)),
+    (5, True, time(6, 0), time(21, 0), time(12, 0), time(14, 0)),
+    (6, True, time(6, 0), time(21, 0), time(12, 0), time(14, 0)),  # sábado
+]
+
+
+def seed_configuracao() -> None:
+    """Cria a configuração e a grade de funcionamento, se ainda não existirem.
+
+    Não há tela de configuração nesta entrega: estes valores se mudam por
+    SQL ou por este comando. Ver CLAUDE.md.
+    """
+    db: Session = SessionLocal()
+    try:
+        if db.get(Configuracao, 1) is None:
+            db.add(Configuracao(id=1))
+            print("  + configuracao criada com os padrões")
+        else:
+            print("  = configuracao já existe, mantida")
+
+        existentes = {d for (d,) in db.execute(select(HorarioFuncionamento.dia_semana)).all()}
+        nomes = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"]
+        for dia, aberto, abre, fecha, p_ini, p_fim in FUNCIONAMENTO:
+            if dia in existentes:
+                print(f"  = {nomes[dia]:8} já existe, mantido")
+                continue
+            db.add(
+                HorarioFuncionamento(
+                    dia_semana=dia,
+                    aberto=aberto,
+                    hora_abertura=abre,
+                    hora_fechamento=fecha,
+                    pausa_inicio=p_ini,
+                    pausa_fim=p_fim,
+                )
+            )
+            janela = f"{abre:%H:%M}-{fecha:%H:%M}" if aberto else "fechado"
+            pausa = f" (pausa {p_ini:%H:%M}-{p_fim:%H:%M})" if p_ini else ""
+            print(f"  + {nomes[dia]:8} {janela}{pausa}")
+        db.commit()
+    finally:
+        db.close()
+
+
+# ATENÇÃO: PREÇOS E QUANTIDADES SÃO FICTÍCIOS.
+#
+# A cliente não informou nenhum valor real, e o pacote é negociado caso a caso
+# no ato da venda (docs/premissas.md, P3). Os números abaixo são propositalmente
+# redondos e improváveis, para que ninguém os confunda com dado do studio numa
+# demonstração. As capacidades, sim, são reais e confirmadas (P1).
+SERVICOS_DEMO = [
+    {
+        "nome": "Pilates",
+        "duracao_min": 60,
+        "preco_centavos": 10_000,  # FICTÍCIO — R$ 100,00
+        "capacidade_padrao": 4,  # confirmado (P1)
+        "cor": "#06B6D4",
+        "modelo_cobranca": ModeloCobranca.MENSALIDADE,
+    },
+    {
+        "nome": "Fisioterapia",
+        "duracao_min": 60,
+        "preco_centavos": 10_000,  # FICTÍCIO
+        "capacidade_padrao": 4,  # confirmado (P1)
+        "cor": "#7C2D8E",
+        "modelo_cobranca": ModeloCobranca.PACOTE,
+        # Sugestões apenas para pré-preencher a venda. NUNCA fonte de verdade:
+        # quem define é a doutora no ato. Todos FICTÍCIOS.
+        "sugestao_pacote_sessoes": 10,
+        "sugestao_pacote_validade_dias": 90,
+        "sugestao_pacote_valor_centavos": 100_000,  # FICTÍCIO — R$ 1.000,00
+    },
+    {
+        "nome": "Avaliação",
+        "duracao_min": 60,
+        "preco_centavos": 10_000,  # FICTÍCIO
+        "capacidade_padrao": 1,  # individual — confirmado (P1)
+        "cor": "#BB4D00",
+        "modelo_cobranca": ModeloCobranca.MENSALIDADE,
+    },
+]
+
+
+def seed_servicos() -> None:
+    """Cria os serviços de demonstração. Idempotente.
+
+    Os preços são fictícios de propósito — ver comentário em SERVICOS_DEMO.
+    """
+    db: Session = SessionLocal()
+    try:
+        for dados in SERVICOS_DEMO:
+            nome = str(dados["nome"])
+            existe = db.execute(select(Service).where(Service.nome == nome)).scalar_one_or_none()
+            if existe is not None:
+                print(f"  = {nome:14} já existe, mantido")
+                continue
+            db.add(Service(**dados))
+            print(f"  + {nome:14} capacidade {dados['capacidade_padrao']}")
+        db.commit()
+    finally:
+        db.close()
+
+    print("\n  ATENÇÃO: os preços cadastrados são FICTÍCIOS.")
+    print("  A cliente ainda não informou valores reais (docs/premissas.md, P3).\n")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli", description=__doc__)
     sub = parser.add_subparsers(dest="comando", required=True)
@@ -97,9 +217,16 @@ def main(argv: list[str] | None = None) -> int:
         help="sorteia senha para quem não tiver variável de ambiente definida",
     )
 
+    sub.add_parser("seed-configuracao", help="cria a configuração e a grade de horários")
+    sub.add_parser("seed-servicos", help="cria os serviços de demonstração")
+
     args = parser.parse_args(argv)
     if args.comando == "seed-usuarios":
         seed_usuarios(gerar=args.gerar_senhas)
+    elif args.comando == "seed-configuracao":
+        seed_configuracao()
+    elif args.comando == "seed-servicos":
+        seed_servicos()
     return 0
 
 
