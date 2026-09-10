@@ -2,6 +2,7 @@ import {
   Activity,
   Calendar,
   CalendarClock,
+  Clock,
   DollarSign,
   LayoutGrid,
   LogOut,
@@ -16,6 +17,8 @@ import { PAPEL_LABEL } from '@/types/auth'
 
 const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutGrid },
+  // Só o instrutor enxerga: é a tela dele, com as aulas de hoje.
+  { to: '/minha-agenda', label: 'Minha Agenda', icon: Clock },
   { to: '/agenda', label: 'Agendamentos', icon: Calendar },
   // Os prints dizem "Clientes"; a nomenclatura acordada da interface é
   // "Paciente". Ver referencia-figma/README.md.

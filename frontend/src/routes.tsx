@@ -8,6 +8,7 @@ import { Atividades } from '@/pages/Atividades'
 import { Dashboard } from '@/pages/Dashboard'
 import { Financeiro } from '@/pages/Financeiro'
 import { Login } from '@/pages/Login'
+import { MinhaAgenda } from '@/pages/MinhaAgenda'
 import { Pacientes } from '@/pages/Pacientes'
 import { Reposicoes } from '@/pages/Reposicoes'
 import { RaizRedirect } from '@/pages/RaizRedirect'
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
               { index: true, element: <RaizRedirect /> },
               { path: 'dashboard', element: <Dashboard /> },
               { path: 'agenda', element: <Agenda /> },
+              { path: 'minha-agenda', element: <MinhaAgenda /> },
               { path: 'pacientes', element: <Pacientes /> },
               { path: 'reposicoes', element: <Reposicoes /> },
               { path: 'atividades', element: <Atividades /> },

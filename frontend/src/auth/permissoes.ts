@@ -9,6 +9,8 @@ import type { Papel } from '@/types/auth'
  */
 export const ACESSO_POR_ROTA: Record<string, readonly Papel[]> = {
   '/dashboard': ['admin', 'recepcao'],
+  // Tela do instrutor: as aulas dele hoje, somente leitura.
+  '/minha-agenda': ['instrutor', 'admin'],
   // O instrutor entra direto na agenda: é a única tela dele, somente leitura.
   '/agenda': ['admin', 'recepcao', 'instrutor'],
   '/pacientes': ['admin', 'recepcao'],
@@ -26,5 +28,6 @@ export function podeAcessar(papel: Papel, rota: string): boolean {
 
 /** Para onde mandar cada perfil ao entrar. */
 export function rotaInicial(papel: Papel): string {
-  return papel === 'instrutor' ? '/agenda' : '/dashboard'
+  // O instrutor entra direto na agenda dele, que é o que ele veio ver.
+  return papel === 'instrutor' ? '/minha-agenda' : '/dashboard'
 }

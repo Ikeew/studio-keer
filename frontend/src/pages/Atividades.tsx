@@ -1,6 +1,7 @@
 import { Activity, Plus, Users } from 'lucide-react'
 import { useState } from 'react'
 
+import { useEstatisticasDeServicos } from '@/api/dashboard'
 import { useServicos } from '@/api/servicos'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -73,6 +74,39 @@ function ServicoCard({
   )
 }
 
+function EstatisticasDeServicos() {
+  const { data: stats } = useEstatisticasDeServicos()
+  if (!stats || stats.length === 0) return null
+
+  return (
+    <section className="mt-8 rounded-card border border-edge bg-surface p-6 shadow-card">
+      <h2 className="font-heading text-xl font-semibold">Estatísticas de Serviços</h2>
+      <p className="mt-1 text-sm text-muted">Mês corrente</p>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {stats.map((s) => (
+          <div
+            key={s.service_id}
+            className="rounded-card p-5 text-center"
+            // Mesma cor do serviço na agenda, bem clara: a associação entre
+            // legenda e estatística fica imediata.
+            style={{ backgroundColor: `${s.cor}1A` }}
+          >
+            <p className="font-heading text-3xl font-semibold" style={{ color: s.cor }}>
+              {s.reservas_no_mes}
+            </p>
+            <p className="mt-1 text-[15px]">{s.nome}</p>
+            <p className="mt-1 text-sm text-muted">
+              {s.sessoes_no_mes} turma{s.sessoes_no_mes === 1 ? '' : 's'} ·{' '}
+              {s.ocupacao_percentual}% de ocupação
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export function Atividades() {
   const { data: servicos, isPending, isError } = useServicos()
   const [criando, setCriando] = useState(false)
@@ -110,6 +144,8 @@ export function Atividades() {
           ))}
         </div>
       )}
+
+      <EstatisticasDeServicos />
 
       <Modal
         aberto={criando}
