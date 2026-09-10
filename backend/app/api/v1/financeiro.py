@@ -89,6 +89,16 @@ def totais(db: Db) -> TotaisRead:
     )
 
 
+@router.get("/charges/{charge_id}", response_model=ChargeRead, dependencies=[OPERADORES])
+def obter(charge_id: int, db: Db) -> ChargeRead:
+    """Consistência: toda entidade tem GET por id.
+
+    Sem esta rota, pedir uma cobrança pelo id devolvia 405 — um erro que não
+    diz nada a quem está integrando ou depurando.
+    """
+    return _recarregar(db, charge_service.buscar(db, charge_id))
+
+
 @router.post(
     "/charges/gerar-mensalidades",
     response_model=ResultadoFaturamentoRead,
