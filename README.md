@@ -131,7 +131,7 @@ studio-keer/
 | **2** | Cadastro de pacientes e de serviços | **concluída** |
 | **3** | Agenda semanal: sessões, reservas, presença, falta, remarcação | **concluída** |
 | **4** | Matrículas, geração recorrente e reposições pendentes | **concluída** |
-| 5 | Financeiro: mensalidades, cobranças avulsas, baixa de pagamento | |
+| **5** | Financeiro: mensalidades, venda de pacote, baixa de pagamento | **concluída** |
 | 6 | Dashboard com indicadores reais e agenda do instrutor | |
 | 7 | Testes de ponta a ponta, seed de demonstração, deploy | |
 
