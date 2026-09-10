@@ -18,6 +18,7 @@ As premissas ainda não validadas estão em [premissas.md](premissas.md).
 | `enrollments.dia_semana` + `hora` | Tabela `enrollment_horarios` | 2x/semana são **dois** horários, não um |
 | Segunda a sexta | Sábado incluído | Confirmado (P6) |
 | Reposição justificada (regra fixa) | Regra em **configuração** | Contradição em aberto (P5) |
+| Cancelamento em cima da hora vira falta | **Não existe prazo** | A regra das 24h era premissa nossa, descartada (P4) |
 | `bookings.remarcado_de_id` | `bookings.substitui_booking_id` | Mesma coluna; o nome antigo dizia "remarcação" mas ela também guarda reposição |
 | Pacote como `enrollments.tipo` | Tabela `packages` própria | Pacote é **negociado por venda**, não cadastrado (P3) |
 | `services.pacote_*` obrigatório | `services.sugestao_pacote_*` | Vira sugestão para pré-preencher, nunca fonte de verdade |
@@ -246,6 +247,11 @@ dois nulos é o caso da sessão avulsa e da avaliação.
 **`status` é só presença.** Pagamento vive em `charges`. Os dois eixos são
 independentes e nunca se combinam num estado só.
 
+**Cancelamento nunca vira falta automaticamente.** Não há prazo de
+antecedência — a regra das 24h era premissa do time e foi descartada (P4).
+Quem classifica é a recepção, marcando `justificada`. `cancelado_em` é
+informação (quando a vaga liberou), não regra.
+
 **`substitui_booking_id`** aponta da reserva nova para a falta que ela está
 cobrindo. Serve tanto para reposição quanto para remarcação — `origem` diz
 qual dos dois. O nome anterior (`remarcado_de_id`) sugeria só remarcação.
@@ -301,7 +307,6 @@ cabe.
 Linha única (`CHECK (id = 1)`).
 
 ```
-cancelamento_antecedencia_horas    24       ⏳ não validado        (P4)
 reposicao_exige_justificativa      true     ✅ confirmado          (P5)
 reposicao_prazo_mesmo_mes          true     ⏳ não validado        (P5)
 falta_consome_sessao_do_pacote     false    ✅ confirmado          (P5)
@@ -328,20 +333,43 @@ Exigência de LGPD e rastro de quem alterou agenda e pagamento.
 
 O ponto central, dada a hipótese de P10. **Três** lugares, não um:
 
-### 1. Ao criar qualquer reserva
+### 1. Ao criar qualquer reserva — e a trava é do BANCO
 
 Inclui **reposição**, sem exceção. Não existe caminho que fure o limite.
 
+Capacidade é um limite de **contagem**, e contagem não se expressa em índice
+único. A saída é dar a cada reserva uma **posição** na turma (1..capacidade) e
+tornar a posição única por sessão:
+
 ```sql
-SELECT ... FROM sessions WHERE id = :id FOR UPDATE;   -- trava a linha
-SELECT count(*) FROM bookings
- WHERE session_id = :id AND status <> 'cancelada';
--- só então insere
+UNIQUE (session_id, posicao) WHERE status <> 'cancelada'
 ```
 
-O `FOR UPDATE` não é preciosismo: duas recepcionistas podem reservar a última
-vaga ao mesmo tempo. Sem a trava, as duas contam 3 de 4 e as duas inserem.
-Coberto por teste de concorrência na Fase 3.
+Duas recepcionistas disputando a última vaga calculam a mesma posição, e o
+**banco** reprova uma delas — não a aplicação. Some a corrida.
+
+O índice sozinho garante só que ninguém repete posição; quem decide que a
+posição cabe ainda é a aplicação. Para fechar também esse furo, a reserva
+guarda `capacidade_sessao` — cópia da capacidade no momento da marcação — com:
+
+```sql
+CHECK (posicao <= capacidade_sessao)
+```
+
+Assim um bug de código que tentasse a posição 5 numa turma de 4 é recusado
+pelo banco. A cópia não vira mentira quando a capacidade muda: reservas
+existentes mantêm sua posição (o sistema avisa, não remove) e reservas novas
+usam a capacidade nova.
+
+O `SELECT ... FOR UPDATE` na sessão continua existindo, mas como conforto: ele
+serializa as recepcionistas para que a segunda **espere** em vez de tomar
+erro. A garantia final é o índice.
+
+**O índice ser PARCIAL é o que implementa "cancelar libera a vaga":** ao virar
+`cancelada`, a linha sai do índice e a posição volta ao pool, na mesma
+transação. É por isso que o aviso antecipado gera valor — ver P4.
+
+Coberto por teste de concorrência com duas conexões reais.
 
 ### 2. Ao criar ou alterar um horário de matrícula
 

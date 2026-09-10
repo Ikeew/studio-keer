@@ -8,7 +8,7 @@ Levar este arquivo para a reunião. Ao confirmar ou refutar um item, atualize o
 **Status** junto com o código.
 
 **Legenda de status:**
-✅ Confirmado pela cliente · ⏳ Aguardando resposta · ⚠️ Contraditório, precisa de decisão
+✅ Confirmado pela cliente · ⏳ Aguardando resposta · ⚠️ Contraditório · ❌ Premissa descartada
 
 **Legenda de custo:**
 **Baixo** = mudar um registro no banco ou um campo na tela, sem deploy.
@@ -22,9 +22,9 @@ Levar este arquivo para a reunião. Ao confirmar ou refutar um item, atualize o
 | # | Assunto | Status |
 |---|---|---|
 | P1 | Capacidade das turmas | ✅ **Fechado** — 4 em turma, 1 na avaliação |
-| P2 | Mensalidade (Pilates) | ✅ Modelo confirmado · ⏳ valores em aberto |
+| P2 | Mensalidade (Pilates) | ✅ Vencimento confirmado · ⏳ **ciclo de referência** |
 | P3 | Pacote de sessões (Fisioterapia) | ✅ **Fechado** — negociado por venda |
-| P4 | Prazo de cancelamento (24h) | ⏳ Não validado |
+| P4 | Prazo de cancelamento (24h) | ❌ **Descartada** — premissa do time, não da cliente |
 | P5 | Reposição de falta | ✅ **Contradição resolvida** |
 | P6 | Dias e janela de funcionamento | ✅ **Fechado** — inclui sábado e pausa |
 | P7 | Avaliação | ✅ Cobrada à parte · ⏳ obrigatoriedade |
@@ -64,30 +64,54 @@ bloqueia reservas novas até caírem abaixo, mas quem remaneja é a recepção.
 
 ---
 
-## P2 — Mensalidade (Pilates) ✅ modelo · ⏳ valores
+## P2 — Mensalidade (Pilates) ✅ vencimento · ⏳ ciclo
 
 **Confirmado:** plano fixo mensal por matrícula, definido pela frequência
 semanal (2x, 3x). O valor **não** varia com sessões realizadas e falta **não**
-gera desconto. A cobrança nasce da matrícula, não da contagem de sessões.
-Sessão avulsa gera cobrança própria, separada da mensalidade.
+gera desconto. Sessão avulsa gera cobrança própria, separada.
 
-**⏳ Ainda em aberto:**
+**Confirmado também:** cada paciente vence **no dia em que começou** — cada um
+no seu dia, **mês cheio, sem proporcional**.
+
+### ⏳ O que ainda falta é o ciclo, não o vencimento
+
+Sutil, e fácil de confundir com a pergunta já respondida. O **vencimento** está
+definido; o **mês de referência** (a competência) não.
+
+Duas leituras, para um paciente que começou em **15/03**:
+
+| | Competência | Vencimento |
+|---|---|---|
+| **(a) Calendário** | 01/03 a 31/03 | dia 15 |
+| **(b) Aniversário** | 15/03 a 14/04 | dia 15 |
+
+**Adotamos (b), o ciclo por aniversário**, e está documentado como premissa.
+
+**Por quê:** é a leitura consistente com o que ela já respondeu. Ela disse
+"mês cheio a partir do dia em que começou" e "cada um no seu dia". Se fosse
+calendário, quem entrasse dia 28 pagaria o mês inteiro por três dias de
+aula — que é exatamente o proporcional que ela disse **não** fazer.
+
+**Não é pendência bloqueante.** O Financeiro é a Fase 5, e a decisão está
+tomada com justificativa.
+
+**Onde isso aparece no sistema, quando chegar a hora:**
+- Geração da cobrança mensal, que precisa saber onde um ciclo termina.
+- O significado de "mesmo mês" na regra de reposição (P5). Com ciclo por
+  aniversário, "repor dentro do mês" passa a significar "dentro do ciclo do
+  paciente", e não "até o dia 31".
+
+Esse segundo ponto é o que faz a decisão importar antes do Financeiro: a
+reposição é Fase 4.
+
+**⏳ Ainda em aberto, de menor peso:**
 - Quais frequências são vendidas (1x, 2x, 3x, 5x por semana)?
 - Qual o valor de cada uma?
 - Existe plano trimestral ou semestral, com desconto?
-- O mês fecha no dia 1 ou na data de aniversário da matrícula?
 
-**Nota:** ao contrário do pacote (P3), a mensalidade **não** foi levada para
-negociação por venda. Se ela também for negociada caso a caso, o mesmo
-tratamento de snapshot já usado em `enrollments.valor_mensal_centavos`
-resolve — custo baixo.
-
-**Custo:** **baixo**. Frequências e valores são dados: a frequência é o número
-de horários fixos da matrícula, e o valor é campo. Nada disso está em código.
-
-**O mês de referência é a única parte estrutural.** Se a cobrança for por
-aniversário da matrícula em vez de mês-calendário, muda a geração de cobranças
-e o significado de "mesmo mês" na regra de reposição — custo **médio**.
+**Custo:** trocar (b) por (a) é **médio** — muda a geração de cobranças e a
+janela da reposição, sem migration. Frequências e valores são **baixo**: a
+frequência é o número de horários fixos da matrícula, e o valor é campo.
 
 ---
 
@@ -130,22 +154,44 @@ impressão errada de que ainda dá para agendar.
 
 ---
 
-## P4 — Prazo de cancelamento (24h) ⏳
+## P4 — Prazo de cancelamento ❌ PREMISSA DESCARTADA
 
-**Premissa:** cancelamento com 24h ou mais de antecedência é `cancelada`;
-menos que isso vira `falta`.
+**A regra das 24h nunca existiu no negócio.** Ela foi inventada pelo time ao
+montar as premissas iniciais, a partir de convenção de mercado. A cliente
+**nunca mencionou antecedência**, em momento nenhum.
 
-**Origem:** convenção de mercado. **Não foi validada.**
-**Confirma:** Dra. Belanir e a recepcionista, que aplica a regra no dia a dia.
+Fica registrado assim, e não como "pendente", para o histórico ser honesto:
+não é uma pergunta esperando resposta, é uma premissa nossa que foi retirada.
 
-**Perguntas:**
-- O studio hoje cobra falta de aviso em cima da hora, ou releva?
-- O prazo é o mesmo para Pilates e Fisioterapia?
-- A recepção pode marcar "justificada" manualmente, ignorando o prazo
-  (atestado, luto)?
+**Por que não foi levada à reunião:** perguntar "qual é o seu prazo de
+cancelamento?" induziria uma regra que o negócio dela não tem. A pergunta
+carrega a resposta.
 
-**Custo:** **baixo**. O prazo é um registro de configuração, em horas. Prazos
-diferentes por serviço custariam **médio**.
+**O critério real é justificativa, não relógio.** Ela disse: repõe se teve
+justificativa médica ou algo parecido. Quem classifica é a **recepção**,
+marcando justificada sim ou não — que é o que ela já faz hoje.
+
+### O que mudou no sistema
+
+| Antes (premissa nossa) | Agora (realidade da cliente) |
+|---|---|
+| `configuracao.cancelamento_antecedencia_horas = 24` | Coluna **removida** |
+| Cancelar em cima da hora virava `falta` automaticamente | Cancelamento **nunca** vira falta sozinho |
+| O relógio classificava | A **recepção** classifica |
+
+`bookings.cancelado_em` continua existindo, mas como **informação, não como
+regra**: serve para saber quando a vaga liberou.
+
+### O valor do aviso antecipado é operacional, não punitivo
+
+Esta é a parte que importa de verdade. Quando o paciente avisa que não vem,
+**a vaga libera e passa a poder receber uma reposição** — igual a qualquer
+outra vaga, sem tratamento especial.
+
+É assim que o cancelamento antecipado gera valor no studio dela: não punindo
+quem avisa, mas devolvendo o horário para quem precisa repor. A implementação
+disso é literal — o índice de capacidade ignora reservas canceladas, então
+cancelar devolve a posição ao pool na mesma transação.
 
 ---
 

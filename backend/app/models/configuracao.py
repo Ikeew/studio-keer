@@ -19,12 +19,10 @@ class Configuracao(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
 
-    # Cancelar com esta antecedência é `cancelada`; menos que isso vira
-    # `falta`. Premissa NÃO validada (premissas.md, P4).
-    cancelamento_antecedencia_horas: Mapped[int] = mapped_column(
-        Integer, default=24, nullable=False
-    )
-
+    # NÃO existe prazo de cancelamento. A regra das 24h foi uma premissa do
+    # time, descartada: a cliente nunca falou em antecedência. O critério dela
+    # é JUSTIFICATIVA, e quem classifica é a recepção. Ver premissas.md (P4).
+    #
     # Confirmado pela cliente (P5): só falta justificada dá direito a repor.
     reposicao_exige_justificativa: Mapped[bool] = mapped_column(
         Boolean, default=True, nullable=False
