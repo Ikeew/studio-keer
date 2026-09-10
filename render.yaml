@@ -1,0 +1,41 @@
+# Blueprint do Render — provisiona banco e API a partir do repositório.
+#
+# Uso: no painel do Render, New > Blueprint, apontando para este repositório.
+# O plano gratuito é suficiente para a apresentação; ver docs/deploy.md para
+# as limitações que ele impõe.
+
+databases:
+  - name: studio-keer-db
+    databaseName: keer
+    user: keer
+    plan: free
+
+services:
+  - type: web
+    name: studio-keer-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # O Render usa isto para saber quando o deploy ficou pronto. O endpoint
+    # responde 200 mesmo com o banco fora, informando o estado no corpo — se
+    # devolvesse 503, o Render reiniciaria a API em loop durante uma queda do
+    # Postgres, o que não conserta nada.
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: studio-keer-db
+          property: connectionString
+      - key: SECRET_KEY
+        # Gerado pelo Render e nunca visto por ninguém. Não versionar segredo.
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: TIMEZONE
+        value: America/Sao_Paulo
+      - key: CORS_ORIGINS
+        # PREENCHER com a URL da Vercel depois do primeiro deploy do frontend.
+        # Sem isto o navegador bloqueia toda chamada e a tela fica vazia sem
+        # erro visível na API.
+        sync: false

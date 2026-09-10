@@ -25,4 +25,7 @@ RUN uv sync --frozen --no-dev
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# start.sh aplica as migrations antes de subir e respeita a $PORT que o
+# provedor injeta. Em desenvolvimento o docker-compose sobrescreve o comando
+# para ganhar hot reload.
+CMD ["./start.sh"]

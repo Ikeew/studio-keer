@@ -24,8 +24,8 @@ Alembic · Pydantic v2 · JWT + bcrypt · pytest + httpx · [uv](https://docs.as
 **Frontend** — React 18 · Vite · TypeScript · TailwindCSS · React Router ·
 TanStack Query · react-hook-form + zod
 
-**Infra** — docker-compose para desenvolvimento · deploy em Render/Railway
-(backend + banco) e Vercel (frontend)
+**Infra** — docker-compose para desenvolvimento · deploy no Render (backend +
+banco) e Vercel (frontend), com passo a passo em [docs/deploy.md](docs/deploy.md)
 
 ## Rodando localmente
 

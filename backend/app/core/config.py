@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, PostgresDsn
+from pydantic import Field, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,6 +23,26 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     DATABASE_URL: PostgresDsn
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def normalizar_driver(cls, v: object) -> object:
+        """Aceita a URL como Render e Railway a entregam.
+
+        Os dois publicam `postgres://user:senha@host/base`. O SQLAlchemy 2.0
+        não reconhece o esquema `postgres://`, e mesmo `postgresql://` usaria
+        o psycopg2, que não está instalado — a app subiria e morreria na
+        primeira query, já em produção.
+
+        Normalizar aqui evita ter de lembrar de editar a variável na mão a
+        cada provisionamento de banco.
+        """
+        if not isinstance(v, str):
+            return v
+        for prefixo in ("postgres://", "postgresql://"):
+            if v.startswith(prefixo):
+                return "postgresql+psycopg://" + v[len(prefixo) :]
+        return v
 
     # Segurança
     SECRET_KEY: str = Field(min_length=32)

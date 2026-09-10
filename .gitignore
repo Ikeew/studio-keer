@@ -14,7 +14,9 @@ dist/
 # Ambiente — nunca versionar segredo
 .env
 .env.*
-!.env.example
+# A exceção precisa do glob: sem ele, .env.production.example era ignorado
+# junto com os segredos de verdade.
+!.env*.example
 
 # Editores e SO
 .vscode/
