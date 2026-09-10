@@ -22,6 +22,7 @@ from app.core.security import hash_senha
 from app.db.session import get_db
 from app.main import app
 from app.models.configuracao import Configuracao, HorarioFuncionamento
+from app.models.enrollment import Enrollment
 from app.models.patient import Patient
 from app.models.service import ModeloCobranca, Service
 from app.models.session import Session as Sessao
@@ -218,6 +219,28 @@ def criar_sessao(
     db.add(sessao)
     db.flush()
     return sessao
+
+
+def criar_matricula(
+    db: Session,
+    paciente: Patient,
+    instrutor: User,
+    servico: Service,
+    *,
+    horarios: list[tuple[int, dt_time]] | None = None,
+    inicio: date | None = None,
+) -> Enrollment:
+    from app.services import enrollment_service
+
+    return enrollment_service.criar(
+        db,
+        patient_id=paciente.id,
+        service_id=servico.id,
+        professional_id=instrutor.id,
+        vigencia_inicio=inicio or date.today(),
+        valor_mensal_centavos=20_000,
+        horarios=horarios or [(1, dt_time(8, 0))],  # segunda 08:00
+    )
 
 
 def login(client: TestClient, email: str, senha: str = SENHA_PADRAO) -> str:
