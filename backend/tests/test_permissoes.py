@@ -53,3 +53,35 @@ class TestPermissaoPorPapel:
         r = client.get("/api/v1/users", headers=auth(forjado))
 
         assert r.status_code == 403
+
+
+class TestListaDeInstrutores:
+    """A recepção precisa escolher o instrutor ao criar uma turma.
+
+    `/users` é do admin; `/instrutores` existe para esse caso e devolve só
+    quem pode ministrar.
+    """
+
+    def test_recepcao_lista_instrutores(
+        self, client: TestClient, recepcao: User, instrutor: User
+    ) -> None:
+        token = login(client, recepcao.email)
+
+        r = client.get("/api/v1/instrutores", headers=auth(token))
+
+        assert r.status_code == 200
+        assert any(u["email"] == instrutor.email for u in r.json())
+
+    def test_nao_devolve_a_recepcao_como_instrutor(
+        self, client: TestClient, recepcao: User, instrutor: User
+    ) -> None:
+        token = login(client, recepcao.email)
+
+        r = client.get("/api/v1/instrutores", headers=auth(token))
+
+        assert all(u["papel"] != "recepcao" for u in r.json())
+
+    def test_instrutor_nao_acessa(self, client: TestClient, instrutor: User) -> None:
+        token = login(client, instrutor.email)
+
+        assert client.get("/api/v1/instrutores", headers=auth(token)).status_code == 403

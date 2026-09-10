@@ -1,5 +1,8 @@
 import os
 from collections.abc import Generator
+from datetime import date, datetime, timedelta
+from datetime import time as dt_time
+from pathlib import Path
 
 # Definido antes de qualquer import da app: Settings é lido no import de
 # app.db.session e fica em cache por lru_cache.
@@ -9,16 +12,21 @@ os.environ.setdefault("ENVIRONMENT", "test")
 
 import pytest
 import sqlalchemy as sa
+from alembic.command import upgrade as alembic_upgrade
+from alembic.config import Config as AlembicConfig
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
 from app.core.security import hash_senha
-from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.models.configuracao import Configuracao, HorarioFuncionamento
+from app.models.patient import Patient
 from app.models.service import ModeloCobranca, Service
+from app.models.session import Session as Sessao
 from app.models.user import Papel, User
+from app.services.schedule_service import FUSO
 
 settings = get_settings()
 
@@ -45,10 +53,27 @@ def _criar_banco_de_teste_se_preciso() -> None:
 
 @pytest.fixture(scope="session")
 def engine() -> Generator[sa.Engine, None, None]:
+    """Banco de teste montado pelas MIGRATIONS, não por create_all.
+
+    Duas razões:
+
+    1. `create_all` não roda `CREATE EXTENSION pg_trgm`, nem nada que só
+       exista na migration — o índice trigram de pacientes quebraria.
+    2. Rodando as migrations, a suíte testa de graça que elas aplicam do zero
+       e que o schema resultante é o mesmo que o dos models. Divergência entre
+       model e migration vira teste vermelho, não surpresa em produção.
+    """
     _criar_banco_de_teste_se_preciso()
     eng = sa.create_engine(str(settings.DATABASE_URL))
-    Base.metadata.drop_all(eng)
-    Base.metadata.create_all(eng)
+
+    with eng.begin() as conn:
+        conn.execute(sa.text("DROP SCHEMA public CASCADE"))
+        conn.execute(sa.text("CREATE SCHEMA public"))
+
+    config = AlembicConfig(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", str(settings.DATABASE_URL))
+    alembic_upgrade(config, "head")
+
     yield eng
     eng.dispose()
 
@@ -137,6 +162,62 @@ def criar_servico(
     db.add(servico)
     db.flush()
     return servico
+
+
+def criar_paciente(db: Session, nome: str = "Paciente Teste") -> Patient:
+    paciente = Patient(nome_completo=nome)
+    db.add(paciente)
+    db.flush()
+    return paciente
+
+
+def criar_configuracao(db: Session) -> None:
+    """Grade de funcionamento igual à do seed: seg-sáb 06-21, pausa 12-14."""
+    if db.get(Configuracao, 1) is None:
+        db.add(Configuracao(id=1))
+    for dia in range(7):
+        if db.get(HorarioFuncionamento, dia) is not None:
+            continue
+        db.add(
+            HorarioFuncionamento(
+                dia_semana=dia,
+                aberto=dia != 0,  # domingo fechado
+                hora_abertura=dt_time(6, 0),
+                hora_fechamento=dt_time(21, 0),
+                pausa_inicio=dt_time(12, 0),
+                pausa_fim=dt_time(14, 0),
+            )
+        )
+    db.flush()
+
+
+def proxima_segunda() -> date:
+    """Segunda-feira futura, para os testes não esbarrarem no dia de hoje."""
+    hoje = date.today()
+    return hoje + timedelta(days=(7 - hoje.weekday()) % 7 or 7)
+
+
+def criar_sessao(
+    db: Session,
+    instrutor: User,
+    *,
+    servico: Service | None = None,
+    dia: date | None = None,
+    hora: int = 8,
+    capacidade: int = 4,
+) -> Sessao:
+    servico = servico or criar_servico(db, nome=f"Servico {hora}-{capacidade}-{dia}")
+    quando = datetime.combine(dia or proxima_segunda(), dt_time(hour=hora), tzinfo=FUSO)
+    sessao = Sessao(
+        service_id=servico.id,
+        professional_id=instrutor.id,
+        inicia_em=quando,
+        termina_em=quando + timedelta(minutes=60),
+        capacidade=capacidade,
+    )
+    db.add(sessao)
+    db.flush()
+    return sessao
 
 
 def login(client: TestClient, email: str, senha: str = SENHA_PADRAO) -> str:
