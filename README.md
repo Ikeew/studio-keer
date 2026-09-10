@@ -128,7 +128,7 @@ studio-keer/
 |---|---|---|
 | **0** | Fundação: build, banco, migrations, shell de navegação | **concluída** |
 | **1** | Autenticação JWT e perfis de acesso | **concluída** |
-| 2 | Cadastro de pacientes e de serviços | |
+| **2** | Cadastro de pacientes e de serviços | **concluída** |
 | 3 | Agenda semanal: sessões, reservas, presença, falta, remarcação | |
 | 4 | Matrículas e geração recorrente de sessões | |
 | 5 | Financeiro: mensalidades, cobranças avulsas, baixa de pagamento | |
@@ -161,6 +161,18 @@ docker compose exec backend python -m app.cli seed-usuarios --gerar-senhas
 ```
 
 O comando é idempotente e **não** sobrescreve a senha de quem já existe.
+
+Depois, crie a configuração e os serviços de demonstração:
+
+```bash
+docker compose exec backend python -m app.cli seed-configuracao
+docker compose exec backend python -m app.cli seed-servicos
+```
+
+> Os **preços dos serviços são fictícios**. A cliente ainda não informou
+> valores reais, e o pacote é negociado no ato da venda
+> ([docs/premissas.md](docs/premissas.md), P3). Não use na apresentação como
+> se fossem dados do studio.
 
 | E-mail | Perfil | Enxerga |
 |---|---|---|
