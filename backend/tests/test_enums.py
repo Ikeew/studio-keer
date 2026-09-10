@@ -116,3 +116,71 @@ def test_datas_voltam_com_fuso(db: Session, instrutor: User) -> None:
     assert recarregada.inicia_em.tzinfo is not None
     assert isinstance(recarregada.inicia_em, datetime)
     assert isinstance(time(8, 0), time)
+
+
+class TestTodosOsModelsDeclaramEnumCorretamente:
+    """Rede permanente contra o bug do enum.
+
+    A varredura por grep encontra o que existe hoje; este teste pega o model
+    que alguém escrever amanhã. Percorre TODOS os models mapeados e exige que
+    toda coluna cujo tipo Python é um StrEnum use `sa.Enum` — nunca `String`.
+    """
+
+    def test_nenhuma_coluna_de_enum_usa_string(self) -> None:
+        import sqlalchemy as sa
+
+        from app.db.base import Base
+
+        problemas: list[str] = []
+
+        for mapper in Base.registry.mappers:
+            for prop in mapper.column_attrs:
+                anotacao = mapper.class_.__annotations__.get(prop.key, "")
+                texto = str(anotacao)
+                # Colunas anotadas com um enum do domínio.
+                if not any(
+                    nome in texto
+                    for nome in (
+                        "Papel",
+                        "Sexo",
+                        "EstadoCivil",
+                        "ModeloCobranca",
+                        "StatusPacote",
+                        "StatusSessao",
+                        "StatusReserva",
+                        "OrigemReserva",
+                    )
+                ):
+                    continue
+                coluna = prop.columns[0]
+                if not isinstance(coluna.type, sa.Enum):
+                    problemas.append(
+                        f"{mapper.class_.__name__}.{prop.key} usa "
+                        f"{type(coluna.type).__name__} — use coluna_enum(...)"
+                    )
+
+        assert not problemas, "\n".join(problemas)
+
+    def test_todo_enum_do_dominio_tem_teste_de_reload(self) -> None:
+        """Lembrete: enum novo precisa entrar nos testes de reload acima."""
+        from app.models.booking import OrigemReserva, StatusReserva
+        from app.models.package import StatusPacote
+        from app.models.patient import EstadoCivil, Sexo
+        from app.models.service import ModeloCobranca
+        from app.models.session import StatusSessao
+        from app.models.user import Papel
+
+        cobertos = {
+            Papel,
+            Sexo,
+            EstadoCivil,
+            ModeloCobranca,
+            StatusPacote,
+            StatusSessao,
+            StatusReserva,
+            OrigemReserva,
+        }
+
+        assert len(cobertos) == 8, (
+            "Enum novo no domínio? Some ao conjunto e escreva o teste de reload."
+        )
