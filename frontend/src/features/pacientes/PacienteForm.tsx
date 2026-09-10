@@ -1,12 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { useAtualizarPaciente, useCriarPaciente } from '@/api/pacientes'
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Campo, Input, Select } from '@/components/ui/Campo'
+import { CampoMascarado } from '@/components/ui/CampoMascarado'
+import { mascaraCpf, mascaraTelefone } from '@/lib/mascara'
 import { cpfValido } from '@/lib/cpf'
 import { ESTADOS_CIVIS, ESTADO_CIVIL_LABEL, SEXOS, SEXO_LABEL } from '@/types/paciente'
 import type { Paciente } from '@/types/paciente'
@@ -58,6 +60,7 @@ export function PacienteForm({ paciente, onPronto }: Props) {
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<Campos>({
@@ -98,7 +101,22 @@ export function PacienteForm({ paciente, onPronto }: Props) {
 
       <div className="grid grid-cols-2 gap-4">
         <Campo id="cpf" label="CPF" erro={errors.cpf?.message}>
-          <Input id="cpf" placeholder="000.000.000-00" {...register('cpf')} />
+          <Controller
+            name="cpf"
+            control={control}
+            render={({ field }) => (
+              <CampoMascarado
+                id="cpf"
+                placeholder="000.000.000-00"
+                mascara={mascaraCpf}
+                name={field.name}
+                value={(field.value as string | null) ?? ''}
+                onChange={(e) => field.onChange(e.target.value)}
+                onBlur={field.onBlur}
+                ref={field.ref}
+              />
+            )}
+          />
         </Campo>
         <Campo id="data_nascimento" label="Nascimento" erro={errors.data_nascimento?.message}>
           <Input id="data_nascimento" type="date" {...register('data_nascimento')} />
@@ -135,7 +153,22 @@ export function PacienteForm({ paciente, onPronto }: Props) {
           <Input id="email" type="email" {...register('email')} />
         </Campo>
         <Campo id="telefone" label="Telefone">
-          <Input id="telefone" placeholder="(11) 90000-0000" {...register('telefone')} />
+          <Controller
+            name="telefone"
+            control={control}
+            render={({ field }) => (
+              <CampoMascarado
+                id="telefone"
+                placeholder="(11) 90000-0000"
+                mascara={mascaraTelefone}
+                name={field.name}
+                value={(field.value as string | null) ?? ''}
+                onChange={(e) => field.onChange(e.target.value)}
+                onBlur={field.onBlur}
+                ref={field.ref}
+              />
+            )}
+          />
         </Campo>
       </div>
 
@@ -146,7 +179,22 @@ export function PacienteForm({ paciente, onPronto }: Props) {
             <Input id="emergencia_nome" {...register('emergencia_nome')} />
           </Campo>
           <Campo id="emergencia_telefone" label="Telefone">
-            <Input id="emergencia_telefone" {...register('emergencia_telefone')} />
+            <Controller
+              name="emergencia_telefone"
+              control={control}
+              render={({ field }) => (
+                <CampoMascarado
+                  id="emergencia_telefone"
+                  placeholder="(11) 90000-0000"
+                  mascara={mascaraTelefone}
+                  name={field.name}
+                  value={(field.value as string | null) ?? ''}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                />
+              )}
+            />
           </Campo>
         </div>
       </fieldset>
