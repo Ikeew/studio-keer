@@ -3,7 +3,7 @@ from enum import StrEnum
 from sqlalchemy import Boolean, CheckConstraint, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, coluna_enum
 
 
 class ModeloCobranca(StrEnum):
@@ -43,7 +43,9 @@ class Service(Base, TimestampMixin):
     preco_centavos: Mapped[int] = mapped_column(Integer, nullable=False)
     capacidade_padrao: Mapped[int] = mapped_column(Integer, nullable=False)
     cor: Mapped[str] = mapped_column(String(7), nullable=False)  # hex da legenda
-    modelo_cobranca: Mapped[ModeloCobranca] = mapped_column(String(16), nullable=False)
+    modelo_cobranca: Mapped[ModeloCobranca] = mapped_column(
+        coluna_enum(ModeloCobranca), nullable=False
+    )
 
     sugestao_pacote_sessoes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     sugestao_pacote_validade_dias: Mapped[int | None] = mapped_column(Integer, nullable=True)

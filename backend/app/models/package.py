@@ -1,10 +1,10 @@
 from datetime import date
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, Integer, String
+from sqlalchemy import CheckConstraint, Date, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, coluna_enum
 
 
 class StatusPacote(StrEnum):
@@ -50,7 +50,7 @@ class Package(Base, TimestampMixin):
     comprado_em: Mapped[date] = mapped_column(Date, nullable=False)
     registrado_por_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     status: Mapped[StatusPacote] = mapped_column(
-        String(16), default=StatusPacote.ATIVO, nullable=False
+        coluna_enum(StatusPacote), default=StatusPacote.ATIVO, nullable=False
     )
 
     def __repr__(self) -> str:

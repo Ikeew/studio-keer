@@ -53,10 +53,16 @@ A hipótese de trabalho é que as reposições encaixadas de cabeça são a caus
 principal do overbooking (`docs/premissas.md`, P10). Contar reposição contra a
 capacidade é, sozinho, o que resolve a dor principal da cliente.
 
+**A trava é do banco, não da aplicação.** Cada reserva ocupa uma `posicao`
+(1..capacidade) com `UNIQUE (session_id, posicao) WHERE status <> 'cancelada'`,
+mais `CHECK (posicao <= capacidade_sessao)`. Índice único não conta, então a
+posição é o que transforma contagem em unicidade. O índice ser **parcial** é o
+que faz cancelar devolver a vaga na mesma transação.
+
 **Capacidade se verifica em três lugares, não um:**
 
-1. Ao criar qualquer reserva — com `SELECT ... FOR UPDATE` na sessão, porque
-   duas recepcionistas podem disputar a última vaga.
+1. Ao criar qualquer reserva — o índice é a garantia; o `FOR UPDATE` na sessão
+   só evita que a segunda recepcionista tome erro em vez de esperar.
 2. **Ao criar um horário de matrícula.** Cinco matrículas fixas num horário de
    capacidade 4 fazem toda ocorrência nascer lotada, sem reposição nenhuma
    envolvida. Esquecer este ponto deixa o furo aberto na venda.
@@ -131,6 +137,20 @@ da cliente na apresentação.
 Tudo em `TIMESTAMPTZ`, gravado em UTC, convertido para `America/Sao_Paulo` na
 borda da aplicação. Nunca grave horário local ingênuo: o horário de verão
 volta a existir um dia e a agenda inteira desanda.
+
+**Datetime sem fuso vindo da API é horário do STUDIO, não do servidor.** O
+formulário manda `2026-09-14T08:00:00` pensando em oito da manhã em São Paulo;
+`astimezone()` num datetime ingênuo aplicaria o fuso do servidor, que em
+container é UTC. Isso já quebrou de verdade: 08:00 virava 05:00 e era recusado,
+enquanto 13:00 virava 10:00 e criava turma dentro da pausa. A conversão está
+no schema de entrada, com teste de regressão.
+
+### Enum de coluna: use `coluna_enum(...)`, nunca `String(...)`
+
+`Mapped[MeuEnum]` sobre uma coluna `String` faz a anotação mentir: o valor
+volta do banco como `str` e toda comparação `x.status is MeuEnum.ALGO` fica
+False em silêncio. Em memória funciona, então o bug só aparece depois de um
+reload. Há teste de regressão em `tests/test_enums.py`.
 
 ## Decisões de escopo
 
