@@ -4,6 +4,7 @@ from datetime import date, time, timedelta
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -13,10 +14,12 @@ from app.models.session import Session as Sessao
 from app.models.user import User
 from app.services import booking_service, enrollment_service
 from tests.conftest import (
+    auth,
     criar_configuracao,
     criar_matricula,
     criar_paciente,
     criar_servico,
+    login,
 )
 
 SEGUNDA, TERCA = 1, 2
@@ -365,3 +368,81 @@ class TestBlackouts:
         assert depois == antes, "nenhuma sessão pode ser apagada em silêncio"
         assert len(conflito.sessoes) > 0, "o conflito precisa ser reportado"
         assert conflito.reservas_ativas > 0
+
+
+class TestSaudeDaGrade:
+    """A grade acabando é modo de falha SILENCIOSO.
+
+    Sem aviso, ela esvazia, a busca por vaga para de achar horário, e a
+    recepção volta a encaixar de cabeça — a dor que o sistema veio resolver.
+    """
+
+    def test_sem_matricula_nao_avisa(self, db: Session) -> None:
+        """Sem grade a manter, avisar seria só ruído."""
+        criar_configuracao(db)
+
+        s = enrollment_service.saude_da_grade(db)
+
+        assert s.matriculas_ativas == 0
+        assert s.precisa_atualizar is False
+        assert s.vencida is False
+
+    def test_matricula_sem_grade_gerada_avisa_como_vencida(
+        self, db: Session, instrutor: User
+    ) -> None:
+        criar_configuracao(db)
+        servico = criar_servico(db, nome="Pilates Vencida")
+        criar_matricula(db, criar_paciente(db, "Aluno"), instrutor, servico)
+
+        s = enrollment_service.saude_da_grade(db)
+
+        assert s.vencida is True
+        assert s.precisa_atualizar is True
+
+    def test_grade_recem_gerada_esta_saudavel(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        criar_configuracao(db)
+        servico = criar_servico(db, nome="Pilates Saudavel")
+        criar_matricula(db, criar_paciente(db, "Aluno"), instrutor, servico)
+        enrollment_service.gerar_grade(db, criado_por_id=recepcao.id)
+
+        s = enrollment_service.saude_da_grade(db)
+
+        assert s.precisa_atualizar is False
+        assert s.semanas_restantes >= enrollment_service.SEMANAS_MINIMAS
+
+    def test_grade_curta_pede_atualizacao(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """Duas semanas materializadas: ainda funciona, mas está acabando."""
+        criar_configuracao(db)
+        servico = criar_servico(db, nome="Pilates Curta")
+        criar_matricula(db, criar_paciente(db, "Aluno"), instrutor, servico)
+        enrollment_service.gerar_grade(
+            db, criado_por_id=recepcao.id, ate=date.today() + timedelta(weeks=2)
+        )
+
+        s = enrollment_service.saude_da_grade(db)
+
+        assert s.vencida is False
+        assert s.precisa_atualizar is True
+        assert s.semanas_restantes < enrollment_service.SEMANAS_MINIMAS
+
+    def test_api_expoe_o_limite_usado(
+        self, client: TestClient, db: Session, recepcao: User
+    ) -> None:
+        """A tela mostra o número em vez de repetir a constante do backend."""
+        criar_configuracao(db)
+        t = login(client, recepcao.email)
+
+        r = client.get("/api/v1/agenda/saude-da-grade", headers=auth(t))
+
+        assert r.status_code == 200
+        assert r.json()["semanas_minimas"] == enrollment_service.SEMANAS_MINIMAS
+
+    def test_instrutor_tambem_le(self, client: TestClient, db: Session, instrutor: User) -> None:
+        criar_configuracao(db)
+        t = login(client, instrutor.email)
+
+        assert client.get("/api/v1/agenda/saude-da-grade", headers=auth(t)).status_code == 200

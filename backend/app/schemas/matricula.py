@@ -58,6 +58,22 @@ class ResultadoGeracaoRead(BaseModel):
     sem_vaga: list[str]
 
 
+class SaudeDaGradeRead(BaseModel):
+    """Até quando a grade está materializada.
+
+    A interface usa isto para avisar antes de a grade acabar — o modo de
+    falha da geração manual é silencioso.
+    """
+
+    materializado_ate: date | None
+    dias_restantes: int
+    semanas_restantes: int
+    vencida: bool
+    precisa_atualizar: bool
+    matriculas_ativas: int
+    semanas_minimas: int
+
+
 class BlackoutCreate(BaseModel):
     data_inicio: date
     data_fim: date

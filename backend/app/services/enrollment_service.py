@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
@@ -48,8 +48,76 @@ from app.services.schedule_service import FUSO
 HORIZONTE_SEMANAS = 8
 
 
+#: Abaixo disto a grade é considerada curta e a interface avisa. Três semanas
+#: dão folga para alguém reparar no aviso, clicar no botão e ainda sobrar
+#: horizonte — o modo de falha real não é a grade acabar, é ninguém notar que
+#: ela está acabando.
+SEMANAS_MINIMAS = 3
+
+
 def _dia_semana_db(d: date) -> int:
     return (d.weekday() + 1) % 7
+
+
+@dataclass
+class SaudeDaGrade:
+    """Até quando a grade está materializada.
+
+    Existe porque o modo de falha da geração manual é SILENCIOSO: a grade
+    esvazia, a busca por vaga para de achar horário, e a recepção volta a
+    encaixar de cabeça — exatamente a dor que o sistema veio resolver. Um
+    aviso na tela custa pouco e ataca isso direto.
+    """
+
+    materializado_ate: date | None
+    dias_restantes: int
+    semanas_restantes: int
+    #: Sem nenhuma sessão futura: a grade acabou.
+    vencida: bool
+    #: Abaixo do mínimo: ainda funciona, mas precisa ser atualizada.
+    precisa_atualizar: bool
+    matriculas_ativas: int
+
+
+def saude_da_grade(db: DbSession) -> SaudeDaGrade:
+    hoje = date.today()
+    agora = datetime.combine(hoje, time.min, tzinfo=FUSO)
+
+    ate = db.execute(
+        select(func.max(Session.inicia_em)).where(
+            Session.inicia_em >= agora,
+            Session.status != StatusSessao.CANCELADA,
+        )
+    ).scalar_one_or_none()
+
+    ativas = db.execute(
+        select(func.count())
+        .select_from(Enrollment)
+        .where(Enrollment.status == StatusMatricula.ATIVA)
+    ).scalar_one()
+
+    if ate is None:
+        # Sem matrícula ativa não há grade a manter, e avisar seria ruído.
+        return SaudeDaGrade(
+            materializado_ate=None,
+            dias_restantes=0,
+            semanas_restantes=0,
+            vencida=ativas > 0,
+            precisa_atualizar=ativas > 0,
+            matriculas_ativas=ativas,
+        )
+
+    limite = ate.astimezone(FUSO).date()
+    dias = (limite - hoje).days
+    semanas = dias // 7
+    return SaudeDaGrade(
+        materializado_ate=limite,
+        dias_restantes=dias,
+        semanas_restantes=semanas,
+        vencida=False,
+        precisa_atualizar=ativas > 0 and semanas < SEMANAS_MINIMAS,
+        matriculas_ativas=ativas,
+    )
 
 
 def frequencia_semanal(matricula: Enrollment) -> int:

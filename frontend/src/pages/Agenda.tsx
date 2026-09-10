@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/useAuth'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { AvisoDeGrade } from '@/features/agenda/AvisoDeGrade'
 import { CelulaDaGrade } from '@/features/agenda/CelulaDaGrade'
 import { Legenda } from '@/features/agenda/Legenda'
 import { NovaTurmaForm } from '@/features/agenda/NovaTurmaForm'
@@ -108,6 +109,8 @@ export function Agenda() {
           </div>
         }
       />
+
+      <AvisoDeGrade />
 
       <Legenda sessoes={grade?.sessoes ?? []} />
 

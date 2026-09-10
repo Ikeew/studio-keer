@@ -57,3 +57,16 @@ export type FaltaPendente = {
   procurar_de: string
   procurar_ate: string
 }
+
+/** Diagnóstico de quanto ainda resta de grade materializada. */
+export type SaudeDaGrade = {
+  materializado_ate: string | null
+  dias_restantes: number
+  semanas_restantes: number
+  /** Sem nenhuma sessão futura: a grade acabou. */
+  vencida: boolean
+  /** Abaixo do mínimo: ainda funciona, mas precisa ser atualizada. */
+  precisa_atualizar: boolean
+  matriculas_ativas: number
+  semanas_minimas: number
+}

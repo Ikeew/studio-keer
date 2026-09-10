@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from './client'
-import type { FaltaPendente, Matricula, ResultadoGeracao } from '@/types/matricula'
+import type {
+  FaltaPendente,
+  Matricula,
+  ResultadoGeracao,
+  SaudeDaGrade,
+} from '@/types/matricula'
 
 export function useMatriculas(patientId?: number) {
   return useQuery({
@@ -24,6 +29,24 @@ function useAcao<TVars, TResult>(fn: (v: TVars) => Promise<TResult>) {
       qc.invalidateQueries({ queryKey: ['matriculas'] })
       qc.invalidateQueries({ queryKey: ['agenda'] })
       qc.invalidateQueries({ queryKey: ['reposicoes'] })
+      qc.invalidateQueries({ queryKey: ['saude-da-grade'] })
+    },
+  })
+}
+
+/**
+ * Até quando a grade está materializada.
+ *
+ * A geração é manual, e o modo de falha é silencioso: a grade esvazia, a
+ * busca por vaga para de achar horário, e a recepção volta a encaixar de
+ * cabeça. O aviso na tela é o que impede isso.
+ */
+export function useSaudeDaGrade() {
+  return useQuery({
+    queryKey: ['saude-da-grade'],
+    queryFn: async (): Promise<SaudeDaGrade> => {
+      const { data } = await api.get<SaudeDaGrade>('/agenda/saude-da-grade')
+      return data
     },
   })
 }

@@ -19,6 +19,7 @@ from app.schemas.matricula import (
     HorarioFixo,
     MotivoOpcional,
     ResultadoGeracaoRead,
+    SaudeDaGradeRead,
     SessaoAfetada,
 )
 from app.services import booking_service, enrollment_service, reposicao_service
@@ -152,6 +153,27 @@ def gerar_grade(
     )
     db.commit()
     return ResultadoGeracaoRead(**resultado.__dict__)
+
+
+@router.get(
+    "/agenda/saude-da-grade",
+    response_model=SaudeDaGradeRead,
+    # O instrutor também lê: se a grade dele esvaziar, ele precisa saber por
+    # quê antes de achar que perdeu turmas.
+    dependencies=[Depends(require_papel(Papel.ADMIN, Papel.RECEPCAO, Papel.INSTRUTOR))],
+)
+def saude_da_grade(db: Db) -> SaudeDaGradeRead:
+    """Diagnóstico de quanto ainda resta de grade materializada."""
+    s = enrollment_service.saude_da_grade(db)
+    return SaudeDaGradeRead(
+        materializado_ate=s.materializado_ate,
+        dias_restantes=s.dias_restantes,
+        semanas_restantes=s.semanas_restantes,
+        vencida=s.vencida,
+        precisa_atualizar=s.precisa_atualizar,
+        matriculas_ativas=s.matriculas_ativas,
+        semanas_minimas=enrollment_service.SEMANAS_MINIMAS,
+    )
 
 
 @router.post(

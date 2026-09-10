@@ -6,6 +6,7 @@ import { useReposicoesPendentes } from '@/api/matriculas'
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { AvisoDeGrade } from '@/features/agenda/AvisoDeGrade'
 import { CardDeReposicao } from '@/features/reposicoes/CardDeReposicao'
 
 /**
@@ -47,6 +48,8 @@ export function Reposicoes() {
           </Button>
         }
       />
+
+      <AvisoDeGrade />
 
       {resultado && <Aviso tipo="info">{resultado}</Aviso>}
 
