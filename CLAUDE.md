@@ -14,9 +14,17 @@ telas e a lista do que nos prints **não** deve ser seguido.
 ## O domínio em uma tela
 
 Studio de Pilates e Fisioterapia. A recepcionista opera o sistema; o paciente
-nunca entra. O aluno tem um **horário fixo semanal** (matrícula) e paga
-**mensalidade**. A aula de Pilates é em **turma com capacidade**; fisioterapia
-e avaliação são individuais.
+nunca entra.
+
+**Tudo é em turma, com capacidade máxima de 4** — inclusive fisioterapia. Não
+existe atendimento individual por padrão.
+
+Há **dois modelos de cobrança**: Pilates por **mensalidade** (horário fixo
+semanal), fisioterapia por **pacote de sessões**. Avaliação é serviço próprio,
+cobrado à parte. O modelo completo está em `docs/modelo-de-dados.md`.
+
+**A dor número um da cliente é overbooking**: acabar com mais gente do que
+devia num horário. Toda decisão de agenda se subordina a isso.
 
 ## Decisões de arquitetura
 
@@ -27,13 +35,34 @@ Esta é a decisão central do modelo de dados.
 - **`sessions`** — a ocorrência concreta: este serviço, com este instrutor,
   neste horário, com esta capacidade.
 - **`bookings`** — o vínculo de um paciente com uma sessão. É aqui que vivem
-  presença, falta, cancelamento e remarcação.
-- **`enrollments`** — o horário fixo contratado, que gera sessões e reservas
-  adiante no tempo, e de onde nasce a cobrança mensal.
+  presença, falta, cancelamento e reposição.
+- **`enrollments`** — o contrato: mensalidade com horário fixo, ou pacote de
+  sessões. É de onde nasce a cobrança.
 
-Turma com capacidade, atendimento individual, falta de uma pessoa só e
-remarcação saem todos desse mesmo modelo, sem caso especial. Colapsar sessão e
+Turma com capacidade, falta de uma pessoa só, reposição e os dois modelos de
+cobrança saem todos desse mesmo modelo, sem caso especial. Colapsar sessão e
 reserva numa tabela só quebra assim que duas pessoas dividem o horário.
+
+### Reposição ocupa vaga como qualquer reserva
+
+**Sem exceção, sem "encaixe".** Não existe caminho no sistema que fure a
+capacidade — nem para reposição, nem para admin.
+
+A hipótese de trabalho é que as reposições encaixadas de cabeça são a causa
+principal do overbooking (`docs/premissas.md`, P10). Contar reposição contra a
+capacidade é, sozinho, o que resolve a dor principal da cliente.
+
+**Capacidade se verifica em três lugares, não um:**
+
+1. Ao criar qualquer reserva — com `SELECT ... FOR UPDATE` na sessão, porque
+   duas recepcionistas podem disputar a última vaga.
+2. **Ao criar um horário de matrícula.** Cinco matrículas fixas num horário de
+   capacidade 4 fazem toda ocorrência nascer lotada, sem reposição nenhuma
+   envolvida. Esquecer este ponto deixa o furo aberto na venda.
+3. Ao reduzir capacidade — avisa, não remove reserva existente.
+
+Se não houver vaga, o sistema **diz isso explicitamente** e não oferece saída.
+Um sistema que permite furar o limite apenas documenta o overbooking.
 
 ### O que é derivado nunca é armazenado
 
@@ -62,8 +91,18 @@ Dias e janela de funcionamento, prazo de cancelamento e capacidade padrão são
 **configuração no banco**, não constantes no código. Habilitar sábado ou mudar
 a capacidade de uma turma tem que ser edição de registro, não deploy.
 
-Seed: Segunda a Sexta, 06:00–21:00; cancelamento com 24h de antecedência.
-Esses valores são premissas não validadas — ver `docs/premissas.md`.
+Seed: segunda a **sábado** 06:00–21:00 (domingo fechado); cancelamento com 24h
+de antecedência; capacidade padrão 4.
+
+**A regra de reposição é configuração, não código.** A cliente se contradisse
+sobre exigir justificativa (`docs/premissas.md`, P5), então
+`reposicao_exige_justificativa` e `falta_consome_sessao_do_pacote` são
+registros no banco. O campo `justificada` existe em `bookings`
+independentemente da regra vigente — trocar de leitura não pode exigir
+migration.
+
+A janela do sábado e os valores do pacote **não foram confirmados**. Não chute:
+o seed usa valores obviamente fictícios e comentados como tal.
 
 ### Timezone
 

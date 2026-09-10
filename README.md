@@ -136,8 +136,9 @@ studio-keer/
 | 7 | Testes de ponta a ponta, seed de demonstração, deploy | |
 
 Cada fase entrega algo demonstrável. As decisões de arquitetura e de escopo
-estão em [CLAUDE.md](CLAUDE.md); as de infraestrutura e segurança, em
-[docs/decisoes-tecnicas.md](docs/decisoes-tecnicas.md).
+estão em [CLAUDE.md](CLAUDE.md); o modelo de dados em
+[docs/modelo-de-dados.md](docs/modelo-de-dados.md); as de infraestrutura e
+segurança, em [docs/decisoes-tecnicas.md](docs/decisoes-tecnicas.md).
 
 ## Criando os usuários de acesso
 
@@ -188,9 +189,12 @@ do paciente.
 
 ## Premissas ainda não validadas
 
-Capacidade das turmas, valores e frequências dos planos, prazo de cancelamento
-e regra de reposição foram **assumidos** para destravar o desenvolvimento — não
-foram levantados com a cliente.
+Parte já foi confirmada pela cliente: capacidade 4 em qualquer serviço,
+atendimento aos sábados, mensalidade para Pilates e pacote para fisioterapia.
+
+Continuam em aberto os valores do pacote (quantas sessões, validade, preço), a
+janela do sábado, o prazo de cancelamento — e uma **contradição sobre a regra
+de reposição**, que o sistema acomoda por configuração até ser resolvida.
 
 Estão em **[docs/premissas.md](docs/premissas.md)**, com o custo de mudança de
 cada um. Esse documento é a pauta da reunião com a Dra. Belanir.
