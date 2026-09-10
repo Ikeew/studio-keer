@@ -132,11 +132,12 @@ studio-keer/
 | **3** | Agenda semanal: sessões, reservas, presença, falta, remarcação | **concluída** |
 | **4** | Matrículas, geração recorrente e reposições pendentes | **concluída** |
 | **5** | Financeiro: mensalidades, venda de pacote, baixa de pagamento | **concluída** |
-| 6 | Dashboard com indicadores reais e agenda do instrutor | |
-| 7 | Testes de ponta a ponta, seed de demonstração, deploy | |
+| **6** | Dashboard com indicadores reais e agenda do instrutor | **concluída** |
+| **7** | Testes ponta a ponta, seed de demonstração, deploy | **concluída** |
 
 Cada fase entrega algo demonstrável. As decisões de arquitetura e de escopo
-estão em [CLAUDE.md](CLAUDE.md); o modelo de dados em
+estão em [docs/arquitetura.md](docs/arquitetura.md) (escrito para quem nunca
+viu o projeto) e em [CLAUDE.md](CLAUDE.md); o modelo de dados em
 [docs/modelo-de-dados.md](docs/modelo-de-dados.md); as de infraestrutura e
 segurança, em [docs/decisoes-tecnicas.md](docs/decisoes-tecnicas.md).
 
@@ -161,6 +162,22 @@ docker compose exec backend python -m app.cli seed-usuarios --gerar-senhas
 ```
 
 O comando é idempotente e **não** sobrescreve a senha de quem já existe.
+
+### Dados de demonstração
+
+Para a apresentação, popule o studio fictício:
+
+```bash
+docker compose exec backend python -m app.cli seed-demo
+docker compose exec backend python -m app.cli limpar-demo   # para desfazer
+```
+
+Cria pacientes, matrículas, faltas com reposição pendente, pacotes e
+cobranças em todos os estados. **Todas as datas são relativas a hoje**, então
+o resultado continua fazendo sentido em qualquer data.
+
+> **São dados fictícios.** Nenhum CPF é válido e nenhum telefone existe. O
+> aviso aparece na própria tela de login.
 
 Depois, crie a configuração e os serviços de demonstração:
 
