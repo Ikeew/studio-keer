@@ -96,6 +96,7 @@ def criar(
     criado_por_id: int,
     origem: OrigemReserva = OrigemReserva.AVULSA,
     package_id: int | None = None,
+    enrollment_id: int | None = None,
     substitui_booking_id: int | None = None,
 ) -> Booking:
     """Cria uma reserva respeitando a capacidade.
@@ -111,6 +112,7 @@ def criar(
         session_id=session_id,
         patient_id=patient_id,
         package_id=package_id,
+        enrollment_id=enrollment_id,
         posicao=_proxima_posicao(db, sessao),
         # Cópia do momento da marcação — sustenta o CHECK que impede posição
         # acima da capacidade mesmo se a aplicação errar.
@@ -126,11 +128,31 @@ def criar(
         db.flush()
     except IntegrityError as exc:
         db.rollback()
-        # O índice único de posição estourou: alguém pegou a vaga entre a
-        # leitura e a escrita. Vira 409 com texto claro, nunca 500.
-        raise SemVagaError() from exc
+        # Vários índices únicos protegem esta tabela. Traduzir todos como
+        # "turma completa" mandaria a recepção procurar vaga quando o
+        # problema é outro — mensagem errada custa tempo no balcão.
+        raise _erro_de_integridade(exc) from exc
 
     return reserva
+
+
+#: Índice único -> mensagem que explica o que realmente aconteceu.
+_MENSAGEM_POR_INDICE = {
+    "ix_bookings_posicao_unica": SEM_VAGA,
+    "ix_bookings_paciente_unico_na_sessao": ("Este paciente já está reservado neste horário."),
+    "ix_bookings_substitui_unico": (
+        "Esta falta já foi reposta. Cada falta dá direito a uma reposição."
+    ),
+    "ix_bookings_matricula_por_sessao": ("Esta matrícula já tem reserva nesta sessão."),
+}
+
+
+def _erro_de_integridade(exc: IntegrityError) -> HTTPException:
+    texto = str(exc.orig) if exc.orig is not None else str(exc)
+    for indice, mensagem in _MENSAGEM_POR_INDICE.items():
+        if indice in texto:
+            return HTTPException(status_code=status.HTTP_409_CONFLICT, detail=mensagem)
+    return SemVagaError()
 
 
 def buscar(db: DbSession, booking_id: int) -> Booking:
