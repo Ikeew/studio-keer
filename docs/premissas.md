@@ -21,12 +21,12 @@ Levar este arquivo para a reunião. Ao confirmar ou refutar um item, atualize o
 
 | # | Assunto | Status |
 |---|---|---|
-| P1 | Capacidade das turmas | ✅ Confirmado — 4 em qualquer serviço |
+| P1 | Capacidade das turmas | ✅ **Fechado** — 4 em turma, 1 na avaliação |
 | P2 | Mensalidade (Pilates) | ✅ Modelo confirmado · ⏳ valores em aberto |
-| P3 | Pacote de sessões (Fisioterapia) | ⏳ **Bloqueia o Financeiro** |
+| P3 | Pacote de sessões (Fisioterapia) | ✅ **Fechado** — negociado por venda |
 | P4 | Prazo de cancelamento (24h) | ⏳ Não validado |
-| P5 | Reposição de falta | ⚠️ **Contradição em aberto** |
-| P6 | Dias e janela de funcionamento | ✅ Sábado confirmado · ⏳ janela do sábado |
+| P5 | Reposição de falta | ✅ **Contradição resolvida** |
+| P6 | Dias e janela de funcionamento | ✅ **Fechado** — inclui sábado e pausa |
 | P7 | Avaliação | ✅ Cobrada à parte · ⏳ obrigatoriedade |
 | P8 | Instrutor obrigatório e somente leitura | ⏳ Não validado |
 | P9 | Cadastro de paciente | ⏳ Conferir a ficha de papel |
@@ -35,24 +35,28 @@ Levar este arquivo para a reunião. Ao confirmar ou refutar um item, atualize o
 
 ---
 
-## P1 — Capacidade das turmas ✅
+## P1 — Capacidade das turmas ✅ FECHADO
 
-**Confirmado:** capacidade máxima de **4 em qualquer serviço**. Fisioterapia
-também é em grupo de até 4, não individual.
+**Confirmado:**
 
-**Isso desmentiu a premissa anterior** (Pilates 5, Fisioterapia 1, Avaliação 1),
-que era estimativa do time. Foi corrigido antes de qualquer código ser escrito.
+| Serviço | Capacidade |
+|---|---|
+| Pilates | 4 |
+| Fisioterapia | 4 (também é em turma, não individual) |
+| **Avaliação** | **1** (atendimento individual) |
 
-**Como ficou:** `services.capacidade_padrao` com **padrão 4 para todos**,
-editável na tela de Atividades, com override opcional por sessão. Não há
-número de capacidade escrito em código.
+**Duas premissas do time foram desmentidas ao longo do caminho**, e as duas
+antes de virar código:
 
-**⏳ Dúvida que a resposta abriu — vale reperguntar:**
+1. "Pilates 5, Fisioterapia 1" — errado nos dois. Fisioterapia é em turma.
+2. "4 em qualquer coisa" incluiria a avaliação — não inclui. A dúvida foi
+   levantada porque avaliação inicial em grupo é clinicamente incomum
+   (é anamnese, conversa individual), e a cliente confirmou: o "qualquer
+   coisa" dela era sobre Pilates e fisioterapia.
 
-"4 em qualquer coisa" inclui a **avaliação**? Uma avaliação inicial de
-fisioterapia em grupo de 4 é clinicamente incomum: normalmente é uma conversa
-individual, com anamnese. Seguimos a instrução (padrão 4 para todos), mas se
-avaliação for 1 na prática, é **um campo na tela** — custo baixo.
+**Como ficou:** `services.capacidade_padrao` por serviço, editável na tela de
+Atividades, com override opcional por sessão. Nenhum número de capacidade
+escrito em código.
 
 **Ressalva que continua valendo:** reduzir a capacidade **não** remove reservas
 já feitas. Sessões existentes podem ficar acima do novo limite; o sistema
@@ -73,6 +77,11 @@ Sessão avulsa gera cobrança própria, separada da mensalidade.
 - Existe plano trimestral ou semestral, com desconto?
 - O mês fecha no dia 1 ou na data de aniversário da matrícula?
 
+**Nota:** ao contrário do pacote (P3), a mensalidade **não** foi levada para
+negociação por venda. Se ela também for negociada caso a caso, o mesmo
+tratamento de snapshot já usado em `enrollments.valor_mensal_centavos`
+resolve — custo baixo.
+
 **Custo:** **baixo**. Frequências e valores são dados: a frequência é o número
 de horários fixos da matrícula, e o valor é campo. Nada disso está em código.
 
@@ -82,35 +91,42 @@ e o significado de "mesmo mês" na regra de reposição — custo **médio**.
 
 ---
 
-## P3 — Pacote de sessões (Fisioterapia) ⏳ BLOQUEIA O FINANCEIRO
+## P3 — Pacote de sessões (Fisioterapia) ✅ FECHADO
 
-**Confirmado:** existe pacote — fisioterapia não é vendida por mensalidade.
+**Confirmado:** o pacote é **negociado no ato da venda**, caso a caso,
+conforme a necessidade clínica. Quem define número de sessões, preço e
+validade é a doutora, na hora — não o cadastro.
 
-**Não respondido, e é o essencial:**
+**Isso encerra as três perguntas que bloqueavam o Financeiro.** Não existe
+mais "quantas sessões tem um pacote": tem as que foram vendidas naquele
+pacote.
 
-1. **Quantas sessões tem um pacote?** (10? 12? varia por caso?)
-2. **Tem prazo de validade?** Se sim, contado de quando — da compra ou da
-   primeira sessão?
-3. **Qual o preço?**
+**Como ficou:**
 
-**Nenhum desses valores foi chutado no seed.** O seed usa valores
-obviamente fictícios e comentados como tal, justamente para que ninguém os
-confunda com dado real na apresentação. Tudo é configurável no cadastro do
-serviço.
+- `packages` é a entidade do **pacote vendido**, com os valores capturados no
+  ato: sessões contratadas, valor, validade, data da compra, quem registrou.
+- `services.sugestao_pacote_*` existe **apenas para pré-preencher** o
+  formulário de venda. Nunca é obrigatório e nunca é fonte de verdade.
+- Os valores do pacote vendido são **snapshot**. Mudar a sugestão do serviço
+  amanhã não toca em nada já vendido.
+- **Validade opcional.** Em branco significa que vale até acabar o saldo.
+- A cobrança nasce no ato da venda, com o valor negociado. Não é mensal.
 
-**Perguntas que vão junto, porque afetam a regra:**
+**⏳ Ainda em aberto (menor, não bloqueia):**
+- Sobrando sessões no vencimento da validade, o paciente perde ou renegocia?
+- Pode comprar pacote novo antes de terminar o anterior?
+- O pacote tem horário fixo semanal, ou as sessões são marcadas uma a uma
+  conforme a evolução? O modelo assume **uma a uma**.
 
-- **Falta consome sessão do saldo?** Ver P5 — pode ser exatamente o que ela
-  quis dizer com "de boa". Já é configuração
-  (`falta_consome_sessao_do_pacote`), não regra fixa.
-- Sobrando sessões no fim da validade, elas expiram ou o paciente perde?
-- O pacote tem horário fixo semanal como a mensalidade, ou as sessões são
-  marcadas uma a uma conforme a evolução do tratamento?
-- Pode comprar um pacote novo antes de terminar o anterior?
+**Consequência que a resposta de P5 criou — vale atenção:**
 
-**Custo:** os três valores são **baixo** (campos de cadastro). A pergunta do
-horário fixo é **média**: muda se o pacote gera sessões recorrentes ou só
-saldo.
+Como falta **não** consome sessão do saldo, a **validade é a única trava do
+pacote**. Um paciente que falta muito mantém o saldo intacto indefinidamente.
+Um pacote vendido sem validade e com muitas faltas nunca termina.
+
+Por isso a validade é respeitada em toda consulta de saldo, e a tela mostra
+**saldo e data de expiração juntos** — ver saldo sem ver validade dá a
+impressão errada de que ainda dá para agendar.
 
 ---
 
@@ -133,73 +149,71 @@ diferentes por serviço custariam **médio**.
 
 ---
 
-## P5 — Reposição de falta ⚠️ CONTRADIÇÃO EM ABERTO
+## P5 — Reposição de falta ✅ CONTRADIÇÃO RESOLVIDA
 
-A cliente disse duas coisas incompatíveis sobre quem tem direito a repor.
+A cliente havia dito duas coisas incompatíveis:
 
 > **Antes:** "ele pode repor se teve uma justificativa, médica ou algo parecido"
 >
 > **Agora:** "se o paciente faltar ele pode repor de boa"
 
-**Duas leituras possíveis:**
+**Resolvido: valia a leitura (b).** O "de boa" respondia sobre o **pacote de
+fisioterapia** — se a falta queima uma sessão do saldo comprado — e não sobre
+afrouxar a exigência de justificativa para reposição.
 
-**(a) A regra mudou.** Qualquer falta dá direito a reposição, justificada ou
-não. A resposta nova substitui a antiga.
+**Como ficou:**
 
-**(b) As duas valem, para coisas diferentes.** O "de boa" respondia sobre o
-**pacote de fisioterapia** — a pergunta era se a falta consome sessão do
-saldo. Para a **mensalidade**, continua valendo a exigência de justificativa.
+| Configuração | Valor | Significado |
+|---|---|---|
+| `reposicao_exige_justificativa` | `true` | Só falta justificada dá direito a repor |
+| `falta_consome_sessao_do_pacote` | `false` | Falta **não** desconta do saldo do pacote |
 
-A leitura (b) é plausível porque as duas frases respondiam a perguntas
-diferentes, e porque as duas cobranças têm lógicas distintas: na mensalidade a
-falta não custa nada ao paciente (ele já pagou o mês), enquanto no pacote a
-falta pode queimar uma sessão comprada.
+As duas continuam sendo **configuração no banco**, não regra em código. A
+contradição foi resolvida, mas o mecanismo que permitia acomodá-la fica: se a
+regra mudar, é editar um registro.
 
-**Como o sistema foi modelado para caber nas duas, sem migration:**
+### Definição precisa de "sessão consumida"
 
-| Peça | Para quê |
-|---|---|
-| `bookings.justificada` (bool) + `bookings.motivo_justificativa` | Registra o julgamento da recepção. Existe mesmo que a regra não o use. |
-| `configuracao.reposicao_exige_justificativa` (bool) | Leitura (a) = `false`, leitura (b) = `true`. Trocar é editar um registro. |
-| `configuracao.falta_consome_sessao_do_pacote` (bool) | Responde a pergunta que provavelmente gerou o "de boa". |
+Registrado aqui porque é o tipo de definição que alguém quebra sem perceber:
 
-Com essas três peças, qualquer combinação das duas leituras é representável
-sem tocar em schema. **O padrão do seed é a leitura (b)** — a mais restritiva —
-porque afrouxar depois é editar um registro, enquanto apertar uma regra que já
-foi divulgada aos pacientes é uma conversa desagradável.
+> **Só reserva com status `presente` decrementa o saldo do pacote.**
+> Reserva `agendada`, `confirmada`, `cancelada` ou com `falta` **não** conta.
 
-**⏳ Perguntas para desempatar:**
+Note que isso difere do que o modelo previa antes, quando `agendada` e
+`confirmada` também seguravam saldo. A cliente decidiu que não: o saldo só
+cai quando a sessão realmente acontece.
 
-1. "Quando a senhora disse que pode repor 'de boa', estava falando do pacote
-   de fisioterapia ou de todo mundo?"
-2. Se um paciente da mensalidade falta **sem avisar**, ele repõe?
-3. Uma reposição por mês, ou uma por falta? Se faltou três vezes, repõe três?
-4. Reposição não usada acumula para o mês seguinte, ou expira?
-5. Pode repor em outra modalidade? Com outro instrutor?
+**Efeito colateral aceito:** um paciente pode ter mais sessões marcadas do que
+o saldo comprado, já que reservas futuras não reservam saldo. Na prática o
+limite é a validade, e a recepção vê o saldo na tela. Se isso incomodar, a
+correção é somar as reservas futuras na conta — custo baixo, sem migration.
 
-**Custo:** **baixo** para trocar entre as leituras (configuração). **Médio**
-para as perguntas 3 e 4, que mudam a regra de quantas reposições existem.
+**⏳ Ainda em aberto:**
+1. Uma reposição por mês, ou uma por falta? Se faltou três vezes, repõe três?
+2. Reposição não usada acumula para o mês seguinte, ou expira?
+3. Pode repor em outra modalidade? Com outro instrutor?
 
-**Decisão que o sistema não vai tomar sozinha:** "justificada" é julgamento
+**Decisão que o sistema não toma sozinho:** "justificada" é julgamento
 humano. A recepção marca. O sistema não infere.
 
 ---
 
-## P6 — Dias e janela de funcionamento ✅ sábado · ⏳ janela
+## P6 — Dias e janela de funcionamento ✅ FECHADO
 
-**Confirmado:** o studio **atende sábado**.
+**Confirmado:** segunda a **sábado**, **06:00 às 21:00**, com **pausa das
+12:00 às 14:00**. Domingo fechado.
 
-**⏳ Não respondido:** a janela de horário do sábado. O seed usa **a mesma dos
-dias úteis (06:00–21:00)** por ora, o que é quase certamente largo demais —
-sábado costuma fechar mais cedo.
+O sábado tem a mesma janela dos dias úteis, incluindo a pausa.
 
 **Como ficou:** uma linha por dia da semana em `horarios_funcionamento`, com
-`aberto`, `hora_abertura` e `hora_fechamento`. Ajustar o sábado é **editar uma
-linha**, sem migration e sem deploy. Domingo entra como fechado.
+`aberto`, `hora_abertura`, `hora_fechamento`, `pausa_inicio` e `pausa_fim`.
+Mudar qualquer coisa é **editar uma linha** — sem migration, sem deploy.
 
-**⏳ Também em aberto:** existe intervalo de almoço em que não se agenda?
-
-**Custo:** **baixo**.
+**Observação, não pendência:** um sábado de 06:00 às 21:00 é uma jornada
+longa, e sábado à noite é horário de baixa procura na maioria dos studios. O
+sistema não impede nada — apenas oferece grade vazia onde não houver
+matrícula. Se na prática o sábado esvaziar depois das 12:00, fechar mais cedo
+é editar uma linha e deixa a agenda mais legível.
 
 ---
 
@@ -218,7 +232,7 @@ agendar.
 primeira sessão de um paciente, se existe avaliação concluída — regra nova no
 serviço de agendamento, sem mudança de schema.
 
-**Ver também P1:** se avaliação é individual e não turma de 4.
+**Resolvido em P1:** a avaliação é **individual** (capacidade 1).
 
 ---
 
@@ -244,17 +258,22 @@ dele, sem tocar no modelo de dados.
 
 ## P9 — Cadastro de paciente ⏳
 
-**Premissa:** os campos dos prints — nome, CPF, data de nascimento, sexo,
-estado civil, profissão, e-mail, telefone — mais consentimento LGPD. CPF
-opcional e único.
+**Confirmado:** **contato de emergência** (nome e telefone) — a cliente já
+coleta hoje. Entrou no cadastro.
+
+**Premissa:** os demais campos são os dos prints — nome, CPF, data de
+nascimento, sexo, estado civil, profissão, e-mail, telefone — mais
+consentimento LGPD. CPF opcional (ela pode não ter de todo mundo), único
+quando informado, e **validado de verdade** (dígitos verificadores, não só
+contagem de caracteres).
 
 **Confirma:** a recepcionista, que é quem digita.
 
-**Perguntas:**
+**⏳ Perguntas:**
 - "Estado civil" e "profissão" servem para alguma coisa, ou são herança da
   ficha de papel? Campo que ninguém usa atrasa o cadastro.
-- Falta algum dado que a ficha de papel tem? (contato de emergência, convênio,
-  indicação, endereço)
+- Falta algum outro dado que a ficha de papel tem? (convênio, indicação,
+  endereço)
 - Existe paciente menor de idade? Se sim, precisa de responsável — e o
   consentimento LGPD é dele, não do paciente.
 
@@ -287,18 +306,19 @@ contagem.
 3. Sem vaga no mês, o sistema diz isso explicitamente e **não deixa forçar**.
 4. Painel de **"reposições pendentes"**, que hoje vive na cabeça dela.
 
-**Perguntas para confirmar a hipótese:**
-- Quando aconteceu de ter gente demais num horário, era reposição encaixada?
-- Já aconteceu de **vender** um horário fixo para uma quinta pessoa num
-  horário que já tinha quatro? (é a outra causa possível, ver abaixo)
-- Com que frequência isso acontece — toda semana, todo mês?
+**A pergunta não será levada à cliente, deliberadamente.** Os três pontos de
+verificação cobrem as duas causas de qualquer jeito, então a resposta não
+mudaria nenhuma linha do sistema. Fica registrada como diagnóstico, não como
+pendência.
 
-**Ressalva importante:** mesmo que a hipótese esteja certa, ela não é a única
-causa possível. **Overbooking também nasce na venda da matrícula**, não só na
-reserva: se cinco pessoas têm horário fixo às segundas 08:00 e a capacidade é
-4, toda ocorrência nasce lotada e nenhuma reposição está envolvida. Por isso a
-capacidade é verificada **também na criação da matrícula**, não só na da
-reserva.
+**A segunda causa é provavelmente a principal.** Overbooking também nasce na
+**venda da matrícula**, não só na reserva: se cinco pessoas têm horário fixo
+às segundas 08:00 e a capacidade é 4, toda ocorrência nasce lotada e nenhuma
+reposição está envolvida. Studio que cresceu com planilha vende a quinta vaga
+sem perceber, e ninguém revisita o contrato depois.
+
+É por isso que a capacidade é verificada **também na criação do horário de
+matrícula** — o ponto que a hipótese da reposição, sozinha, não cobriria.
 
 ---
 

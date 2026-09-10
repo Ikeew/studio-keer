@@ -16,12 +16,13 @@ telas e a lista do que nos prints **não** deve ser seguido.
 Studio de Pilates e Fisioterapia. A recepcionista opera o sistema; o paciente
 nunca entra.
 
-**Tudo é em turma, com capacidade máxima de 4** — inclusive fisioterapia. Não
-existe atendimento individual por padrão.
+Pilates e fisioterapia são **em turma, capacidade 4**. Avaliação é
+**individual (1)**.
 
-Há **dois modelos de cobrança**: Pilates por **mensalidade** (horário fixo
-semanal), fisioterapia por **pacote de sessões**. Avaliação é serviço próprio,
-cobrado à parte. O modelo completo está em `docs/modelo-de-dados.md`.
+Há **dois modelos de cobrança, em duas tabelas distintas**: `enrollments`
+(mensalidade do Pilates, com horário fixo semanal) e `packages` (pacote de
+fisioterapia). Avaliação é serviço próprio, cobrado à parte. O modelo completo
+está em `docs/modelo-de-dados.md`.
 
 **A dor número um da cliente é overbooking**: acabar com mais gente do que
 devia num horário. Toda decisão de agenda se subordina a isso.
@@ -91,18 +92,39 @@ Dias e janela de funcionamento, prazo de cancelamento e capacidade padrão são
 **configuração no banco**, não constantes no código. Habilitar sábado ou mudar
 a capacidade de uma turma tem que ser edição de registro, não deploy.
 
-Seed: segunda a **sábado** 06:00–21:00 (domingo fechado); cancelamento com 24h
-de antecedência; capacidade padrão 4.
+Seed: segunda a **sábado** 06:00–21:00 com **pausa 12:00–14:00** (domingo
+fechado); cancelamento com 24h de antecedência; capacidade 4 em turma, 1 na
+avaliação.
 
-**A regra de reposição é configuração, não código.** A cliente se contradisse
-sobre exigir justificativa (`docs/premissas.md`, P5), então
-`reposicao_exige_justificativa` e `falta_consome_sessao_do_pacote` são
-registros no banco. O campo `justificada` existe em `bookings`
-independentemente da regra vigente — trocar de leitura não pode exigir
-migration.
+**Não há tela de configuração nesta entrega.** Os valores vêm do seed e se
+mudam por comando ou SQL. Agenda funcionando vale mais que painel de ajustes.
 
-A janela do sábado e os valores do pacote **não foram confirmados**. Não chute:
-o seed usa valores obviamente fictícios e comentados como tal.
+**A regra de reposição é configuração, não código**, mesmo agora que a
+contradição foi resolvida (P5): `reposicao_exige_justificativa = true` e
+`falta_consome_sessao_do_pacote = false` são registros no banco, não
+constantes.
+
+### Pacote: negociado por venda, e o saldo tem definição exata
+
+Um pacote é **negociado no ato da venda** — a doutora define sessões, preço e
+validade caso a caso. `services.sugestao_pacote_*` serve só para pré-preencher
+o formulário; **nunca** é fonte de verdade. Depois de vendido, um `package`
+não relê nada do serviço.
+
+> **Só reserva com status `presente` consome sessão do saldo.**
+> `agendada`, `confirmada`, `cancelada` e `falta` não consomem.
+
+Essa contagem vive em **uma única função**. Não a reescreva numa consulta
+nova — é o tipo de regra que alguém quebra sem perceber.
+
+Como falta não consome saldo, **a validade é a única trava do pacote**: quem
+falta muito mantém o saldo intacto para sempre. Toda consulta de saldo checa
+validade junto, e a tela mostra **saldo e expiração lado a lado** — saldo sem
+validade faz a recepção prometer o que o sistema depois recusa.
+
+Preço e quantidade de pacote **não têm valor real no seed**: são
+obviamente fictícios e comentados como tal, para ninguém confundir com dado
+da cliente na apresentação.
 
 ### Timezone
 
