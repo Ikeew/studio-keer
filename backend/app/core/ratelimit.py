@@ -36,8 +36,6 @@ um hash curto: quem tem o banco resolve quem é, quem só tem o log não. Ver a
 regra em logs.py.
 """
 
-from __future__ import annotations
-
 import hashlib
 import threading
 import time
