@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
+from app.core.ratelimit import obter_limitador
 from app.core.security import hash_senha
 from app.db.session import get_db
 from app.main import app
@@ -95,6 +96,20 @@ def db(engine: sa.Engine) -> Generator[Session, None, None]:
         session.close()
         trans.rollback()
         conn.close()
+
+
+@pytest.fixture(autouse=True)
+def _limitador_limpo() -> Generator[None, None, None]:
+    """Zera o limitador de login antes e depois de cada teste.
+
+    O limitador vive no processo, não no banco, então a transação revertida
+    do fixture `db` não o alcança. Sem isto, as tentativas erradas de um
+    teste contariam contra o próximo e a suíte passaria a depender da ordem
+    de execução — exatamente o que o isolamento por transação evita.
+    """
+    obter_limitador().zerar()
+    yield
+    obter_limitador().zerar()
 
 
 @pytest.fixture

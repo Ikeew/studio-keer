@@ -55,6 +55,20 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 12
     ALGORITHM: str = "HS256"
 
+    # Limite de tentativas de login. Ver app/core/ratelimit.py para por que
+    # são duas contagens e por que a principal é por conta, não por IP.
+    #
+    # Cinco tentativas cobrem com folga quem errou a senha ou esqueceu o Caps
+    # Lock ligado; quinze minutos de espera tornam a força bruta inviável sem
+    # exigir que alguém destrave a conta na mão — não há ninguém de plantão
+    # para isso num studio de pilates.
+    LOGIN_MAX_TENTATIVAS_CONTA: int = 5
+    # Folgado de propósito: o studio inteiro sai por um IP só, e mais de uma
+    # pessoa erra a senha no mesmo dia sem que isso seja ataque.
+    LOGIN_MAX_TENTATIVAS_IP: int = 20
+    LOGIN_JANELA_MINUTOS: int = 15
+    LOGIN_BLOQUEIO_MINUTOS: int = 15
+
     # Origens do frontend liberadas no CORS, separadas por vírgula.
     CORS_ORIGINS: str = "http://localhost:5173"
 

@@ -3,14 +3,27 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { Servico } from '@/types/servico'
 
+/** Envelope paginado devolvido por GET /services. */
+type PaginaDeServicos = {
+  itens: Servico[]
+  total: number
+  pagina: number
+  tamanho: number
+}
+
 export function useServicos(incluirInativos = false) {
   return useQuery({
     queryKey: ['servicos', incluirInativos],
+    // Continua entregando `Servico[]` para quem chama. O catálogo do studio
+    // tem uma dúzia de itens e cabe na primeira página, então desembrulhar
+    // aqui evita mexer nos quatro componentes que usam este hook só para
+    // montar um select. Quando o catálogo crescer a ponto de precisar de
+    // paginação na tela, o `total` já vem junto.
     queryFn: async (): Promise<Servico[]> => {
-      const { data } = await api.get<Servico[]>('/services', {
+      const { data } = await api.get<PaginaDeServicos>('/services', {
         params: { incluir_inativos: incluirInativos },
       })
-      return data
+      return data.itens
     },
   })
 }

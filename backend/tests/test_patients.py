@@ -216,6 +216,87 @@ class TestBuscaEPaginacao:
         nomes = [i["nome_completo"] for i in r.json()["itens"]]
         assert nomes == sorted(nomes)
 
+    def test_segunda_pagina_nao_repete_a_primeira(
+        self, client: TestClient, recepcao: User
+    ) -> None:
+        """Recorte sem sobreposição é o que faz a paginação valer.
+
+        Com OFFSET errado por um, um paciente apareceria em duas páginas e
+        outro em nenhuma — e ninguém percebe olhando uma página de cada vez.
+        """
+        t = login(client, recepcao.email)
+        self._semear(client, t)
+
+        p1 = client.get("/api/v1/patients", params={"tamanho": 2, "pagina": 1}, headers=auth(t))
+        p2 = client.get("/api/v1/patients", params={"tamanho": 2, "pagina": 2}, headers=auth(t))
+
+        ids1 = {i["id"] for i in p1.json()["itens"]}
+        ids2 = {i["id"] for i in p2.json()["itens"]}
+        assert len(ids2) == 1
+        assert ids1.isdisjoint(ids2)
+
+    def test_pagina_alem_do_fim_devolve_vazio_com_total(
+        self, client: TestClient, recepcao: User
+    ) -> None:
+        """Total continua correto: a tela precisa dele para montar o paginador."""
+        t = login(client, recepcao.email)
+        self._semear(client, t)
+
+        r = client.get("/api/v1/patients", params={"tamanho": 2, "pagina": 50}, headers=auth(t))
+
+        assert r.json()["itens"] == []
+        assert r.json()["total"] == 3
+
+
+class TestLimitesDaListagem:
+    """Limites de entrada da listagem.
+
+    Não é paranoia com atacante: a rota exige token de recepção ou admin. É
+    que um parâmetro absurdo chegando por engano — link velho, teste, dedo
+    escorregando no zero — vira trabalho pesado no banco sem devolver nada.
+    Recusar na borda é mais barato que descobrir no log de lentidão.
+    """
+
+    def test_tamanho_acima_do_teto_e_recusado(self, client: TestClient, recepcao: User) -> None:
+        t = login(client, recepcao.email)
+
+        r = client.get("/api/v1/patients", params={"tamanho": 5000}, headers=auth(t))
+
+        assert r.status_code == 422
+
+    def test_tamanho_zero_ou_negativo_e_recusado(
+        self, client: TestClient, recepcao: User
+    ) -> None:
+        t = login(client, recepcao.email)
+
+        for tamanho in (0, -1):
+            r = client.get("/api/v1/patients", params={"tamanho": tamanho}, headers=auth(t))
+            assert r.status_code == 422
+
+    def test_pagina_absurda_e_recusada(self, client: TestClient, recepcao: User) -> None:
+        """`pagina=999999999` viraria um OFFSET que o banco percorre à toa."""
+        t = login(client, recepcao.email)
+
+        r = client.get("/api/v1/patients", params={"pagina": 999_999_999}, headers=auth(t))
+
+        assert r.status_code == 422
+
+    def test_busca_longa_demais_e_recusada(self, client: TestClient, recepcao: User) -> None:
+        """O termo cai num índice trigram; um parágrafo ali é só custo."""
+        t = login(client, recepcao.email)
+
+        r = client.get("/api/v1/patients", params={"busca": "a" * 5000}, headers=auth(t))
+
+        assert r.status_code == 422
+
+    def test_busca_no_limite_passa(self, client: TestClient, recepcao: User) -> None:
+        """O teto não pode cortar um nome real — cem caracteres sobram."""
+        t = login(client, recepcao.email)
+
+        r = client.get("/api/v1/patients", params={"busca": "a" * 100}, headers=auth(t))
+
+        assert r.status_code == 200
+
 
 class TestSoftDelete:
     def test_desativar_nao_apaga(self, client: TestClient, db: Session, recepcao: User) -> None:

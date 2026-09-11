@@ -24,11 +24,31 @@ def buscar(db: Session, service_id: int) -> Service:
     return servico
 
 
-def listar(db: Session, *, incluir_inativos: bool = False) -> list[Service]:
-    stmt = select(Service).order_by(Service.nome)
+def listar(
+    db: Session,
+    *,
+    incluir_inativos: bool = False,
+    pagina: int = 1,
+    tamanho: int = 50,
+) -> tuple[list[Service], int]:
+    """Lista paginada. Devolve (itens, total), igual a patient_service.listar.
+
+    O total é contado antes do recorte: a tela precisa dele para montar o
+    paginador, e contar sobre a query já filtrada evita que o número inclua
+    serviço inativo quando a listagem não os mostra.
+    """
+    stmt = select(Service)
     if not incluir_inativos:
         stmt = stmt.where(Service.ativo.is_(True))
-    return list(db.execute(stmt).scalars().all())
+
+    total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
+
+    itens = (
+        db.execute(stmt.order_by(Service.nome).offset((pagina - 1) * tamanho).limit(tamanho))
+        .scalars()
+        .all()
+    )
+    return list(itens), total
 
 
 def criar(db: Session, dados: ServiceCreate) -> Service:
