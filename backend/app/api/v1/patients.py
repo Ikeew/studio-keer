@@ -26,8 +26,17 @@ DbSession = Annotated[Session, Depends(get_db)]
 @router.get("", response_model=PaginaDePacientes)
 def listar(
     db: DbSession,
-    busca: Annotated[str | None, Query(description="Nome, telefone ou CPF")] = None,
-    pagina: Annotated[int, Query(ge=1)] = 1,
+    busca: Annotated[
+        str | None,
+        # A busca cai num índice trigram. Um termo de dez mil caracteres faz o
+        # Postgres trabalhar de verdade para devolver nada — ninguém procura
+        # paciente por um parágrafo. Cem cobre o nome mais longo com folga.
+        Query(description="Nome, telefone ou CPF", max_length=100),
+    ] = None,
+    # O OFFSET cresce com o número da página: `pagina=999999999` manda o banco
+    # percorrer e descartar linhas só para devolver vazio. Dez mil páginas são
+    # mais do que a base da cliente vai ter, e limitam o pior caso.
+    pagina: Annotated[int, Query(ge=1, le=10_000)] = 1,
     tamanho: Annotated[int, Query(ge=1, le=100)] = 20,
     incluir_inativos: bool = False,
 ) -> PaginaDePacientes:

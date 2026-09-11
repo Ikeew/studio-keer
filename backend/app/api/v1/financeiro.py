@@ -64,8 +64,10 @@ def listar(
     filtro: Annotated[
         str | None, Query(description="pendentes | pagos | vencidos | cancelados")
     ] = None,
-    busca: str | None = None,
-    pagina: Annotated[int, Query(ge=1)] = 1,
+    # Mesmos limites da listagem de pacientes, pelos mesmos motivos — ver o
+    # comentário em api/v1/patients.py.
+    busca: Annotated[str | None, Query(max_length=100)] = None,
+    pagina: Annotated[int, Query(ge=1, le=10_000)] = 1,
     tamanho: Annotated[int, Query(ge=1, le=100)] = 30,
 ) -> PaginaDeCobrancas:
     linhas, total = charge_service.listar(
