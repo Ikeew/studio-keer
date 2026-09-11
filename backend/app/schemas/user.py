@@ -23,3 +23,10 @@ class UserCreate(BaseModel):
     # senhas longas com o mesmo prefixo abririam a mesma conta.
     senha: str = Field(min_length=8, max_length=BCRYPT_MAX_BYTES)
     papel: Papel
+
+
+class PaginaDeUsuarios(BaseModel):
+    itens: list[UserRead]
+    total: int
+    pagina: int
+    tamanho: int

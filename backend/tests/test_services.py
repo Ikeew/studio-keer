@@ -165,5 +165,67 @@ def test_servico_inativo_some_da_listagem(client: TestClient, admin: User) -> No
     padrao = client.get("/api/v1/services", headers=auth(t))
     todos = client.get("/api/v1/services", params={"incluir_inativos": True}, headers=auth(t))
 
-    assert len(padrao.json()) == 0
-    assert len(todos.json()) == 1
+    assert padrao.json()["total"] == 0
+    assert padrao.json()["itens"] == []
+    assert todos.json()["total"] == 1
+
+
+class TestPaginacaoDeServicos:
+    def _semear(self, client: TestClient, t: str, quantos: int) -> None:
+        for i in range(quantos):
+            client.post(
+                "/api/v1/services",
+                json=mensalidade(nome=f"Servico {i:02d}"),
+                headers=auth(t),
+            )
+
+    def test_envelope_traz_total_pagina_e_tamanho(
+        self, client: TestClient, admin: User
+    ) -> None:
+        t = login(client, admin.email)
+        self._semear(client, t, 3)
+
+        corpo = client.get("/api/v1/services", headers=auth(t)).json()
+
+        assert corpo["total"] == 3
+        assert corpo["pagina"] == 1
+        assert len(corpo["itens"]) == 3
+
+    def test_recorte_nao_repete_entre_paginas(self, client: TestClient, admin: User) -> None:
+        t = login(client, admin.email)
+        self._semear(client, t, 3)
+
+        p1 = client.get("/api/v1/services", params={"tamanho": 2}, headers=auth(t)).json()
+        p2 = client.get(
+            "/api/v1/services", params={"tamanho": 2, "pagina": 2}, headers=auth(t)
+        ).json()
+
+        ids1 = {s["id"] for s in p1["itens"]}
+        ids2 = {s["id"] for s in p2["itens"]}
+        assert len(ids2) == 1
+        assert ids1.isdisjoint(ids2)
+
+    def test_total_ignora_inativos_quando_a_listagem_ignora(
+        self, client: TestClient, admin: User
+    ) -> None:
+        """Total tem que casar com o que a página mostra.
+
+        Se o total contasse a tabela inteira, a tela diria "12 serviços" e
+        listaria 11 — e alguém passaria a tarde procurando o que sumiu.
+        """
+        t = login(client, admin.email)
+        self._semear(client, t, 3)
+        sid = client.get("/api/v1/services", headers=auth(t)).json()["itens"][0]["id"]
+        client.delete(f"/api/v1/services/{sid}", headers=auth(t))
+
+        padrao = client.get("/api/v1/services", headers=auth(t)).json()
+
+        assert padrao["total"] == 2
+        assert len(padrao["itens"]) == 2
+
+    def test_tamanho_absurdo_e_recusado(self, client: TestClient, admin: User) -> None:
+        t = login(client, admin.email)
+
+        r = client.get("/api/v1/services", params={"tamanho": 5000}, headers=auth(t))
+
+        assert r.status_code == 422

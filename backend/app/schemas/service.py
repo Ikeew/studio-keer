@@ -91,3 +91,18 @@ class ServiceRead(BaseModel):
     sugestao_pacote_validade_dias: int | None
     sugestao_pacote_valor_centavos: int | None
     ativo: bool
+
+
+class PaginaDeServicos(BaseModel):
+    """Mesmo envelope de PaginaDePacientes.
+
+    O catálogo do studio tem uma dúzia de serviços e não vai crescer muito,
+    mas a listagem já é a mesma forma em pacientes e em cobranças — uma
+    listagem que responde diferente das outras é a que alguém esquece de
+    paginar quando ela cresce.
+    """
+
+    itens: list[ServiceRead]
+    total: int
+    pagina: int
+    tamanho: int

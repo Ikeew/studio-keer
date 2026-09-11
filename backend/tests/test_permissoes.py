@@ -15,7 +15,7 @@ class TestPermissaoPorPapel:
         r = client.get("/api/v1/users", headers=auth(token))
 
         assert r.status_code == 200
-        assert any(u["email"] == admin.email for u in r.json())
+        assert any(u["email"] == admin.email for u in r.json()["itens"])
 
     def test_recepcao_recebe_403(self, client: TestClient, recepcao: User) -> None:
         token = login(client, recepcao.email)
