@@ -5,6 +5,7 @@ import { usePacientes } from '@/api/pacientes'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { usePageTitle } from '@/hooks/usePageTitle'
 import { PacienteCard } from '@/features/pacientes/PacienteCard'
 import { PacienteForm } from '@/features/pacientes/PacienteForm'
 import { PainelDeMatriculas } from '@/features/matriculas/PainelDeMatriculas'
@@ -13,6 +14,7 @@ import type { Paciente } from '@/types/paciente'
 const POR_PAGINA = 12
 
 export function Pacientes() {
+  usePageTitle('Pacientes')
   const [busca, setBusca] = useState('')
   const [buscaAplicada, setBuscaAplicada] = useState('')
   const [pagina, setPagina] = useState(1)

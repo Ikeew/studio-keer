@@ -6,6 +6,7 @@ import { useReposicoesPendentes } from '@/api/matriculas'
 import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { usePageTitle } from '@/hooks/usePageTitle'
 import { AvisoDeGrade } from '@/features/agenda/AvisoDeGrade'
 import { CardDeReposicao } from '@/features/reposicoes/CardDeReposicao'
 
@@ -17,6 +18,7 @@ import { CardDeReposicao } from '@/features/reposicoes/CardDeReposicao'
  * lembrar de cabeça.
  */
 export function Reposicoes() {
+  usePageTitle('Reposições Pendentes')
   const [incluirVencidas, setIncluirVencidas] = useState(false)
   const { data: faltas, isPending, isError } = useReposicoesPendentes(incluirVencidas)
   const gerar = useGerarGrade()

@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/useAuth'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { usePageTitle } from '@/hooks/usePageTitle'
 import { AvisoDeGrade } from '@/features/agenda/AvisoDeGrade'
 import { CelulaDaGrade } from '@/features/agenda/CelulaDaGrade'
 import { Legenda } from '@/features/agenda/Legenda'
@@ -30,6 +31,7 @@ function somarDias(iso: string, dias: number): string {
 }
 
 export function Agenda() {
+  usePageTitle('Agendamentos')
   const { usuario } = useAuth()
   const podeEscrever = usuario?.papel === 'admin' || usuario?.papel === 'recepcao'
 

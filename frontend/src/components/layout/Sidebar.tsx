@@ -37,15 +37,16 @@ export function Sidebar() {
   const itens = NAV.filter((item) => podeAcessar(usuario.papel, item.to))
 
   return (
-    <aside className="flex w-[280px] shrink-0 flex-col bg-brand text-white">
+    <aside aria-label="Menu principal" className="flex w-[280px] shrink-0 flex-col bg-brand text-white">
       <div className="border-b border-white/10 px-6 py-7">
-        <h1 className="font-heading text-xl font-semibold leading-tight text-white">
+        {/* Mantemos como <span> para não conflitar com o <h1> de cada página. */}
+        <span className="font-heading text-xl font-semibold leading-tight text-white">
           Studio Keer
-        </h1>
+        </span>
         <p className="mt-1 text-sm text-white/70">Gestão de Agendamentos</p>
       </div>
 
-      <nav className="flex flex-col gap-1 p-4">
+      <nav aria-label="Navegação" className="flex flex-col gap-1 p-4">
         {itens.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
@@ -53,14 +54,21 @@ export function Sidebar() {
             className={({ isActive }) =>
               cn(
                 'flex items-center gap-3 rounded-card px-4 py-3 text-[15px] transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 focus-visible:ring-offset-brand',
                 isActive
                   ? 'bg-brand-dark font-medium text-white'
                   : 'text-white/85 hover:bg-white/10',
               )
             }
           >
-            <Icon size={20} strokeWidth={2} />
-            {label}
+            {({ isActive }) => (
+              <>
+                <Icon size={20} strokeWidth={2} aria-hidden="true" />
+                {label}
+                {/* Anuncia "página atual" para leitores de tela sem alterar visual. */}
+                {isActive && <span className="sr-only"> (página atual)</span>}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -71,9 +79,9 @@ export function Sidebar() {
         <button
           type="button"
           onClick={sair}
-          className="mt-3 flex w-full items-center gap-2 rounded-card px-3 py-2 text-sm text-white/85 transition-colors hover:bg-white/10"
+          className="mt-3 flex w-full items-center gap-2 rounded-card px-3 py-2 text-sm text-white/85 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 focus-visible:ring-offset-brand"
         >
-          <LogOut size={16} />
+          <LogOut size={16} aria-hidden="true" />
           Sair
         </button>
       </div>

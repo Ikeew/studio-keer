@@ -14,6 +14,7 @@ import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { usePageTitle } from '@/hooks/usePageTitle'
 import { VendaDePacote } from '@/features/financeiro/VendaDePacote'
 import { cn } from '@/lib/cn'
 import { data as formatarData, reais } from '@/lib/formato'
@@ -55,6 +56,7 @@ function CardDeTotal({
 }
 
 export function Financeiro() {
+  usePageTitle('Financeiro')
   const { usuario } = useAuth()
   const ehAdmin = usuario?.papel === 'admin'
 

@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { useAuth } from '@/auth/useAuth'
 import { rotaInicial } from '@/auth/permissoes'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
 const schema = z.object({
   email: z.string().min(1, 'Informe o e-mail').email('E-mail inválido'),
@@ -15,6 +16,7 @@ const schema = z.object({
 type Campos = z.infer<typeof schema>
 
 export function Login() {
+  usePageTitle('Entrar')
   const { usuario, entrar } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()

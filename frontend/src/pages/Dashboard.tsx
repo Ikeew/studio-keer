@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useIndicadores } from '@/api/dashboard'
 import { AvisoDeGrade } from '@/features/agenda/AvisoDeGrade'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { usePageTitle } from '@/hooks/usePageTitle'
 import { cn } from '@/lib/cn'
 import { STATUS_LABEL } from '@/types/agenda'
 
@@ -38,6 +39,7 @@ function Kpi({
 }
 
 export function Dashboard() {
+  usePageTitle('Dashboard')
   const { data, isPending, isError } = useIndicadores()
 
   return (

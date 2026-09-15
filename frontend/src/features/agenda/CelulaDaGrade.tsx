@@ -30,49 +30,71 @@ export function CelulaDaGrade({ sessoes, aberto, onAbrirSessao }: Props) {
   return (
     <td className="border border-edge p-2 align-top">
       <div className="flex flex-col gap-2">
-        {sessoes.map((sessao) => (
-          <button
-            key={sessao.id}
-            type="button"
-            onClick={() => onAbrirSessao(sessao)}
-            className="w-full rounded-card border-l-4 bg-subtle p-2 text-left transition-colors hover:bg-edge"
-            style={{ borderLeftColor: sessao.servico_cor }}
-          >
-            <span className="block text-sm font-medium">{sessao.servico_nome}</span>
-            {/* Os prints omitem o instrutor. A interface DEVE mostrá-lo —
-                sem isso o perfil de instrutor não tem o que ler. */}
-            <span className="block text-sm text-muted">{sessao.instrutor_nome}</span>
+        {sessoes.map((sessao) => {
+          const vagasTexto = sessao.lotada
+            ? 'Turma cheia'
+            : `${sessao.vagas} vaga${sessao.vagas === 1 ? '' : 's'}`
 
-            <ul className="mt-1 flex flex-col gap-0.5">
-              {sessao.reservas.map((r) => (
-                <li
-                  key={r.id}
-                  className={cn(
-                    'truncate text-sm',
-                    r.status === 'falta' && 'text-falta line-through',
-                    r.status === 'presente' && 'text-ink',
-                  )}
-                >
-                  {r.paciente_nome}
-                  {r.origem === 'reposicao' && (
-                    <span className="ml-1 text-xs text-muted">(rep.)</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+          // Rótulo descritivo para leitores de tela: contexto completo da célula.
+          const label = `${sessao.servico_nome}, ${sessao.instrutor_nome}, ${vagasTexto}`
 
-            <span
-              className={cn(
-                'mt-1 block text-sm font-medium',
-                sessao.lotada ? 'text-falta' : 'text-muted',
-              )}
+          return (
+            <button
+              key={sessao.id}
+              type="button"
+              onClick={() => onAbrirSessao(sessao)}
+              onKeyDown={(e) => {
+                // Enter e Espaço já disparam onClick em buttons nativos,
+                // mas garantimos explicitamente para leitores de tela.
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onAbrirSessao(sessao)
+                }
+              }}
+              aria-label={label}
+              className="w-full rounded-card border-l-4 bg-subtle p-2 text-left transition-colors hover:bg-edge focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
+              style={{ borderLeftColor: sessao.servico_cor }}
             >
-              {sessao.lotada
-                ? 'Turma cheia'
-                : `${sessao.vagas} vaga${sessao.vagas === 1 ? '' : 's'}`}
-            </span>
-          </button>
-        ))}
+              {/* Conteúdo visual — o aria-label no button já descreve tudo. */}
+              <span className="block text-sm font-medium" aria-hidden="true">
+                {sessao.servico_nome}
+              </span>
+              {/* Os prints omitem o instrutor. A interface DEVE mostrá-lo —
+                  sem isso o perfil de instrutor não tem o que ler. */}
+              <span className="block text-sm text-muted" aria-hidden="true">
+                {sessao.instrutor_nome}
+              </span>
+
+              <ul className="mt-1 flex flex-col gap-0.5" aria-label="Alunos">
+                {sessao.reservas.map((r) => (
+                  <li
+                    key={r.id}
+                    className={cn(
+                      'truncate text-sm',
+                      r.status === 'falta' && 'text-falta line-through',
+                      r.status === 'presente' && 'text-ink',
+                    )}
+                  >
+                    {r.paciente_nome}
+                    {r.origem === 'reposicao' && (
+                      <span className="ml-1 text-xs text-muted">(rep.)</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              <span
+                className={cn(
+                  'mt-1 block text-sm font-medium',
+                  sessao.lotada ? 'text-falta' : 'text-muted',
+                )}
+                aria-hidden="true"
+              >
+                {vagasTexto}
+              </span>
+            </button>
+          )
+        })}
       </div>
     </td>
   )

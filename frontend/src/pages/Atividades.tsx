@@ -6,6 +6,7 @@ import { useServicos } from '@/api/servicos'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { usePageTitle } from '@/hooks/usePageTitle'
 import { ServicoForm } from '@/features/atividades/ServicoForm'
 import { reais } from '@/lib/formato'
 import { MODELO_COBRANCA_LABEL, type Servico } from '@/types/servico'
@@ -108,6 +109,7 @@ function EstatisticasDeServicos() {
 }
 
 export function Atividades() {
+  usePageTitle('Atividades & Serviços')
   const { data: servicos, isPending, isError } = useServicos()
   const [criando, setCriando] = useState(false)
   const [emEdicao, setEmEdicao] = useState<Servico | null>(null)

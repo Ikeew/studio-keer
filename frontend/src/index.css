@@ -12,4 +12,43 @@
   h3 {
     @apply font-heading text-ink;
   }
+
+  /*
+   * Anel de foco visível global — garante que TODO elemento interativo tenha
+   * indicador de foco ao navegar pelo teclado, mesmo que o componente não
+   * defina focus-visible explicitamente.
+   *
+   * Usa :focus-visible (não :focus) para não mostrar anel em cliques de mouse.
+   */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand ring-offset-1;
+  }
+
+  /*
+   * Exceção: elementos que já definem seu próprio anel (botões brancos da
+   * sidebar, botão de fechar do modal) usam focus-visible:ring-* inline e
+   * precisam sobrescrever o ring-brand global. A regra acima não interfere
+   * porque eles usam outline-none + ring explícito — a especificidade é igual
+   * e a última declaração vence via ordem em cascata.
+   */
+}
+
+@layer components {
+  /*
+   * Badges de status — texto escuro sobre fundo claro para contraste ≥ 4.5:1.
+   * As cores de fundo originais (#C7EAF1, #E5D5E8, #CDF0F6, #FFE2E2) são
+   * claras demais para texto branco; usamos text-ink (#1A1A2E) em todos.
+   */
+  .badge-confirmado {
+    @apply bg-badge-confirmado text-ink;
+  }
+  .badge-aguardando {
+    @apply bg-badge-aguardando text-ink;
+  }
+  .badge-pago {
+    @apply bg-badge-pago text-ink;
+  }
+  .badge-alerta {
+    @apply bg-badge-alerta text-danger;
+  }
 }

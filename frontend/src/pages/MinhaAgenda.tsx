@@ -2,6 +2,7 @@ import { Clock } from 'lucide-react'
 
 import { useMinhaAgenda } from '@/api/dashboard'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { usePageTitle } from '@/hooks/usePageTitle'
 import { cn } from '@/lib/cn'
 import { STATUS_LABEL } from '@/types/agenda'
 
@@ -13,6 +14,7 @@ import { STATUS_LABEL } from '@/types/agenda'
  * recusaria de qualquer forma.
  */
 export function MinhaAgenda() {
+  usePageTitle('Minha Agenda')
   const { data: aulas, isPending, isError } = useMinhaAgenda()
 
   const hoje = new Date().toLocaleDateString('pt-BR', {
