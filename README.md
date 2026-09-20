@@ -227,3 +227,9 @@ de reposição**, que o sistema acomoda por configuração até ser resolvida.
 
 Estão em **[docs/premissas.md](docs/premissas.md)**, com o custo de mudança de
 cada um. Esse documento é a pauta da reunião com a Dra. Belanir.
+
+[![Backend CI](https://github.com/Ikeew/studio-keer/actions/workflows/backend.yml/badge.svg)](https://github.com/Ikeew/studio-keer/actions/workflows/backend.yml)
+[![Frontend CI](https://github.com/Ikeew/studio-keer/actions/workflows/frontend.yml/badge.svg)](https://github.com/Ikeew/studio-keer/actions/workflows/frontend.yml)
+
+---### Contribuições / Modificações
+* **Modificações e CI/CD:** GUIPRC
