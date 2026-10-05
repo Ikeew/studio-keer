@@ -14,10 +14,11 @@ import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { RegistrarPagamento } from '@/features/financeiro/RegistrarPagamento'
 import { VendaDePacote } from '@/features/financeiro/VendaDePacote'
 import { cn } from '@/lib/cn'
 import { data as formatarData, reais } from '@/lib/formato'
-import { FILTROS, type Cobranca } from '@/types/financeiro'
+import { FILTROS, FORMA_LABEL, type Cobranca } from '@/types/financeiro'
 
 function CardDeTotal({
   rotulo,
@@ -62,6 +63,7 @@ export function Financeiro() {
   const [busca, setBusca] = useState('')
   const [buscaAplicada, setBuscaAplicada] = useState('')
   const [vendendo, setVendendo] = useState(false)
+  const [pagando, setPagando] = useState<Cobranca | null>(null)
   const [cancelando, setCancelando] = useState<Cobranca | null>(null)
   const [motivo, setMotivo] = useState('')
   const [aviso, setAviso] = useState<string | null>(null)
@@ -73,10 +75,14 @@ export function Financeiro() {
 
   const { data: totais } = useTotais()
   const { data: pagina, isPending } = useCobrancas({ filtro, busca: buscaAplicada })
-  const pagar = useMarcarPago()
   const desfazer = useDesfazerPagamento()
   const cancelar = useCancelarCobranca()
   const gerar = useGerarMensalidades()
+  // A baixa mora aqui, e não no modal: se o modal desmontasse com ela, um
+  // erro (409, rede) chegaria sem ninguém para mostrá-lo.
+  const pagar = useMarcarPago()
+  // O modal guarda um retrato da cobrança; o estado que vale é o da lista.
+  const pagandoAtual = pagando ? pagina?.itens.find((c) => c.id === pagando.id) : undefined
 
   return (
     <>
@@ -189,7 +195,7 @@ export function Financeiro() {
                       </span>
                     )}
                   </td>
-                  <td className="p-4">
+                  <td className="whitespace-nowrap p-4">
                     <span
                       className={cn(
                         'rounded-full px-3 py-1 text-sm',
@@ -208,6 +214,11 @@ export function Financeiro() {
                             ? 'Cancelado'
                             : 'Pendente'}
                     </span>
+                    {c.status === 'pago' && c.forma_pagamento && (
+                      <span className="ml-2 text-sm text-muted">
+                        · {FORMA_LABEL[c.forma_pagamento]}
+                      </span>
+                    )}
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -215,7 +226,11 @@ export function Financeiro() {
                         <Button
                           variante="acento"
                           className="px-4 py-2 text-sm"
-                          onClick={() => pagar.mutate({ id: c.id, forma: 'pix' })}
+                          onClick={() => {
+                            // Não herdar erro ou sucesso da cobrança anterior.
+                            pagar.reset()
+                            setPagando(c)
+                          }}
                         >
                           Marcar Pago
                         </Button>
@@ -260,6 +275,24 @@ export function Financeiro() {
 
       <Modal aberto={vendendo} titulo="Vender Pacote" onFechar={() => setVendendo(false)}>
         <VendaDePacote onPronto={() => setVendendo(false)} />
+      </Modal>
+
+      <Modal
+        aberto={pagando !== null}
+        titulo="Registrar pagamento"
+        onFechar={() => {
+          // Fechar no meio do registro esconderia o resultado: espera terminar.
+          if (!pagar.isPending) setPagando(null)
+        }}
+      >
+        {pagando && (
+          <RegistrarPagamento
+            cobranca={pagando}
+            atual={pagandoAtual}
+            pagar={pagar}
+            onPronto={() => setPagando(null)}
+          />
+        )}
       </Modal>
 
       <Modal

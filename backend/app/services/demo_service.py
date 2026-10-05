@@ -608,6 +608,27 @@ def _proxima_posicao_livre(db: DbSession, sessao: Session) -> int:
     return sessao.capacidade
 
 
+# Distribuição FICTÍCIA de formas de pagamento — a cliente não informou como
+# os pacientes pagam. PIX na maioria, depois crédito, débito, dinheiro e
+# transferência: o bastante para o gráfico de formas do dashboard ter forma.
+# Determinística (indexada pela posição da cobrança) para o seed ser
+# reproduzível de uma execução para outra.
+_FORMAS_DEMO: tuple[FormaPagamento, ...] = (
+    FormaPagamento.PIX,
+    FormaPagamento.PIX,
+    FormaPagamento.CREDITO,
+    FormaPagamento.PIX,
+    FormaPagamento.DINHEIRO,
+    FormaPagamento.DEBITO,
+    FormaPagamento.PIX,
+    FormaPagamento.CREDITO,
+    FormaPagamento.TRANSFERENCIA,
+    FormaPagamento.PIX,
+    FormaPagamento.DEBITO,
+    FormaPagamento.PIX,
+)
+
+
 def _pagamentos(db: DbSession, recepcao_id: int, r: ResultadoDemo) -> None:
     """Deixa as cobranças em todos os três estados visíveis na tela.
 
@@ -634,7 +655,7 @@ def _pagamentos(db: DbSession, recepcao_id: int, r: ResultadoDemo) -> None:
             continue
         cobranca.status = StatusCobranca.PAGO
         cobranca.pago_em = datetime.combine(cobranca.vencimento, time(10, 0), tzinfo=UTC)
-        cobranca.forma_pagamento = FormaPagamento.PIX if i % 2 == 0 else FormaPagamento.DINHEIRO
+        cobranca.forma_pagamento = _FORMAS_DEMO[i % len(_FORMAS_DEMO)]
         cobranca.registrado_por_id = recepcao_id
     db.flush()
 

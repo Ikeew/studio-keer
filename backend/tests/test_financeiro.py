@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.charge import Charge, StatusCobranca, TipoCobranca
+from app.models.charge import Charge, FormaPagamento, StatusCobranca, TipoCobranca
 from app.models.service import ModeloCobranca
 from app.models.user import User
 from app.services import charge_service, package_service
@@ -340,6 +340,59 @@ class TestFluxoDePagamento:
             charge_service.marcar_pago(db, cobranca.id, registrado_por_id=recepcao.id)
 
         assert exc.value.status_code == 409
+
+    def test_paga_nao_pode_ser_paga_de_novo(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """Duplo envio, ou duas recepcionistas com o modal aberto na mesma cobrança.
+
+        O segundo pagamento não pode trocar a forma e a data do primeiro em
+        silêncio — isso muda o caixa de forma e até de mês na análise.
+        """
+        criar_configuracao(db)
+        _matricula(db, instrutor, "PagaDuas", date.today() - timedelta(days=30))
+        charge_service.gerar_mensalidades(db)
+        cobranca = db.execute(select(Charge)).scalars().first()
+        assert cobranca is not None
+        charge_service.marcar_pago(
+            db, cobranca.id, registrado_por_id=recepcao.id, forma=FormaPagamento.DINHEIRO
+        )
+        pago_em = cobranca.pago_em
+
+        with pytest.raises(HTTPException) as exc:
+            charge_service.marcar_pago(
+                db, cobranca.id, registrado_por_id=recepcao.id, forma=FormaPagamento.PIX
+            )
+
+        assert exc.value.status_code == 409
+        assert exc.value.detail == "Esta cobrança já está paga."
+        db.refresh(cobranca)
+        assert cobranca.status is StatusCobranca.PAGO
+        assert cobranca.forma_pagamento is FormaPagamento.DINHEIRO
+        assert cobranca.pago_em == pago_em
+
+    def test_desfazer_libera_pagar_de_novo(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """Corrigir a forma é desfazer e pagar de novo, de propósito."""
+        criar_configuracao(db)
+        _matricula(db, instrutor, "Corrige", date.today() - timedelta(days=30))
+        charge_service.gerar_mensalidades(db)
+        cobranca = db.execute(select(Charge)).scalars().first()
+        assert cobranca is not None
+        charge_service.marcar_pago(
+            db, cobranca.id, registrado_por_id=recepcao.id, forma=FormaPagamento.DINHEIRO
+        )
+        charge_service.desfazer_pagamento(db, cobranca.id, registrado_por_id=recepcao.id)
+
+        charge_service.marcar_pago(
+            db, cobranca.id, registrado_por_id=recepcao.id, forma=FormaPagamento.PIX
+        )
+
+        db.refresh(cobranca)
+        assert cobranca.status is StatusCobranca.PAGO
+        assert cobranca.forma_pagamento is FormaPagamento.PIX
+        assert cobranca.pago_em is not None
 
     def test_pendente_nao_pode_ser_desfeita(
         self, db: Session, instrutor: User, recepcao: User

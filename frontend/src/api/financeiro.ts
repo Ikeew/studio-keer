@@ -47,7 +47,15 @@ function useAcaoFinanceira<TVars, TResult>(fn: (v: TVars) => Promise<TResult>) {
   return useMutation({
     mutationFn: fn,
     // Invalida a lista E os totais: dar baixa muda os três cards do topo.
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['cobrancas'] }),
+    // E o dashboard: receita recebida e formas de pagamento mudam junto.
+    // Também na falha: um 409 quer dizer que outra pessoa mexeu na cobrança, e
+    // a lista velha seguiria oferecendo a mesma ação a cada clique. O onSettled
+    // é aguardado antes de a mutação sair de pending, nos dois desfechos.
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['cobrancas'] }),
+        qc.invalidateQueries({ queryKey: ['dashboard'] }),
+      ]),
   })
 }
 

@@ -141,11 +141,29 @@ def marcar_pago(
     registrado_por_id: int,
     forma: FormaPagamento = FormaPagamento.OUTRO,
 ) -> Charge:
-    cobranca = buscar(db, charge_id)
+    # FOR UPDATE: no duplo envio as duas requisições chegam juntas; sem a trava
+    # as duas leem "pendente" e a checagem abaixo não pega a segunda.
+    cobranca = db.execute(
+        select(Charge)
+        .where(Charge.id == charge_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+    if cobranca is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cobrança não encontrada")
     if cobranca.status is StatusCobranca.CANCELADO:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cobrança cancelada não pode ser paga.",
+        )
+    # Pagar de novo sobrescreveria forma e data em silêncio: duas recepcionistas
+    # com o modal aberto, ou um duplo envio, trocam "Dinheiro de ontem" por
+    # "PIX de hoje" — e o pagamento muda de forma e até de mês na análise.
+    # Corrigir a forma é desfazer e pagar de novo, de propósito.
+    if cobranca.status is StatusCobranca.PAGO:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Esta cobrança já está paga.",
         )
     cobranca.status = StatusCobranca.PAGO
     cobranca.pago_em = datetime.now(UTC)
