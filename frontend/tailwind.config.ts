@@ -39,6 +39,36 @@ export default {
         surface: '#FFFFFF', // cards
         subtle: '#F7F7F9', // linhas de lista, header de tabela
         edge: '#E5E7EB', // bordas e botão secundário
+
+        // Gráficos da análise do Dashboard. Paleta validada com o validador de
+        // dataviz: presente/justificada/falta separam com CVD ΔE 18,1 e visão
+        // normal ΔE 24,4. `justificada` e `apoio` ficam abaixo de 3:1 contra o
+        // branco, por isso SEMPRE aparecem com rótulo de texto ao lado — a cor
+        // nunca é o único jeito de ler o valor. A falta reutiliza o token
+        // `falta` e a ênfase reutiliza `brand`.
+        grafico: {
+          apoio: '#B39BBB', // barras que não são o destaque
+          trilho: '#F3EEF5', // fundo das barras
+          presente: '#0891B2',
+          justificada: '#F59E0B',
+          'sem-registro': '#9CA3AF',
+        },
+      },
+      keyframes: {
+        // Barras crescem a partir da base. Usar com `motion-safe:` e
+        // `origin-left` / `origin-bottom`; o atraso escalonado vai por style.
+        'crescer-x': {
+          from: { transform: 'scaleX(0)' },
+          to: { transform: 'scaleX(1)' },
+        },
+        'crescer-y': {
+          from: { transform: 'scaleY(0)' },
+          to: { transform: 'scaleY(1)' },
+        },
+      },
+      animation: {
+        'crescer-x': 'crescer-x 600ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        'crescer-y': 'crescer-y 600ms cubic-bezier(0.22, 1, 0.36, 1) both',
       },
       backgroundColor: {
         'badge-confirmado': '#C7EAF1',

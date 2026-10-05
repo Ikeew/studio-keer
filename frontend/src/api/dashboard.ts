@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 
 import { api } from './client'
 import type {
+  Analise,
   EstatisticaDeServico,
   Indicadores,
   ProximoAgendamento,
@@ -41,5 +42,22 @@ export function useEstatisticasDeServicos() {
       const { data } = await api.get<EstatisticaDeServico[]>('/dashboard/servicos')
       return data
     },
+  })
+}
+
+/**
+ * Análise dos últimos `meses` meses (1..12), incluindo o corrente.
+ *
+ * `placeholderData` mantém o quadro anterior na tela enquanto o novo período
+ * carrega — trocar o filtro não pisca nem pula o layout.
+ */
+export function useAnalise(meses: number) {
+  return useQuery({
+    queryKey: ['dashboard', 'analise', meses],
+    queryFn: async (): Promise<Analise> => {
+      const { data } = await api.get<Analise>('/dashboard/analise', { params: { meses } })
+      return data
+    },
+    placeholderData: (anterior) => anterior,
   })
 }

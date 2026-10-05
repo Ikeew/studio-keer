@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react'
 
 import { useIndicadores } from '@/api/dashboard'
 import { AvisoDeGrade } from '@/features/agenda/AvisoDeGrade'
+import { PainelDeAnalise } from '@/features/dashboard/PainelDeAnalise'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { cn } from '@/lib/cn'
 import { STATUS_LABEL } from '@/types/agenda'
@@ -127,6 +128,9 @@ export function Dashboard() {
           </section>
         </>
       )}
+
+      {/* Fora do bloco acima: a análise tem fetch próprio e não depende dele. */}
+      <PainelDeAnalise />
     </>
   )
 }
