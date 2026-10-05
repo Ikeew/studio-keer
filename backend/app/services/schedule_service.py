@@ -43,7 +43,7 @@ def _dia_semana_db(d: date) -> int:
     return (d.weekday() + 1) % 7
 
 
-def _horas_do_dia(cfg: HorarioFuncionamento) -> tuple[time, ...]:
+def horas_do_dia(cfg: HorarioFuncionamento) -> tuple[time, ...]:
     """Horas cheias atendíveis no dia, já SEM a pausa.
 
     A pausa é removida aqui, e não escondida na tela, para que a API nunca
@@ -91,7 +91,7 @@ def janela_da_semana(db: DbSession, inicio: date) -> list[JanelaDoDia]:
             JanelaDoDia(
                 dia=dia,
                 aberto=True,
-                horas=_horas_do_dia(cfg),
+                horas=horas_do_dia(cfg),
                 hora_abertura=cfg.hora_abertura,
                 hora_fechamento=cfg.hora_fechamento,
                 pausa_inicio=cfg.pausa_inicio,
@@ -111,7 +111,7 @@ def horario_e_atendivel(db: DbSession, momento: datetime) -> bool:
     cfg = db.get(HorarioFuncionamento, _dia_semana_db(local.date()))
     if cfg is None or not cfg.aberto:
         return False
-    return time(hour=local.hour) in _horas_do_dia(cfg)
+    return time(hour=local.hour) in horas_do_dia(cfg)
 
 
 def inicio_da_semana(referencia: date) -> date:
