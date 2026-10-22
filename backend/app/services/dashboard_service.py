@@ -172,7 +172,7 @@ def _proximos_de(
         ProximoAgendamento(
             booking_id=reserva.id,
             hora=f"{sessao.inicia_em.astimezone(FUSO):%H:%M}",
-            paciente_nome=paciente.nome_completo,
+            paciente_nome=paciente.nome_exibicao,
             servico_nome=servico.nome,
             instrutor_nome=instrutor.nome,
             status=reserva.status,

@@ -349,6 +349,10 @@ dele, sem tocar no modelo de dados.
 **Confirmado:** **contato de emergência** (nome e telefone) — a cliente já
 coleta hoje. Entrou no cadastro.
 
+**Confirmado (out/2026):** **nome social**, opcional. Quando preenchido, é o
+nome da agenda, da presença e da reposição; financeiro, nota fiscal e contrato
+continuam no nome civil.
+
 **Premissa:** os demais campos são os dos prints — nome, CPF, data de
 nascimento, sexo, estado civil, profissão, e-mail, telefone — mais
 consentimento LGPD. CPF opcional (ela pode não ter de todo mundo), único

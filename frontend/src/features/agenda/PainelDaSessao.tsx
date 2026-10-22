@@ -264,7 +264,7 @@ export function PainelDaSessao({ sessao, onRemarcar }: Props) {
                 <option value="">Selecione…</option>
                 {disponiveis.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.nome_completo}
+                    {p.nome_exibicao}
                   </option>
                 ))}
               </Select>

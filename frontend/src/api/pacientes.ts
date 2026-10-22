@@ -36,6 +36,7 @@ export function usePacientes(filtro: FiltroPacientes) {
 
 export type PacienteInput = {
   nome_completo: string
+  nome_social?: string | null
   cpf?: string | null
   data_nascimento?: string | null
   sexo?: string

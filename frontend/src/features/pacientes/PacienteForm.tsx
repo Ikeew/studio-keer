@@ -19,6 +19,10 @@ const vazioParaNulo = (v: unknown) => (v === '' ? null : v)
 // digita; a que vale é a do servidor.
 const schema = z.object({
   nome_completo: z.string().trim().min(3, 'Informe o nome completo'),
+  nome_social: z.preprocess(
+    vazioParaNulo,
+    z.string().trim().max(160, 'Máximo de 160 caracteres').nullable(),
+  ),
   cpf: z.preprocess(
     vazioParaNulo,
     z
@@ -67,6 +71,7 @@ export function PacienteForm({ paciente, onPronto }: Props) {
     resolver: zodResolver(schema),
     defaultValues: {
       nome_completo: paciente?.nome_completo ?? '',
+      nome_social: paciente?.nome_social ?? null,
       cpf: paciente?.cpf_formatado ?? null,
       data_nascimento: paciente?.data_nascimento ?? null,
       sexo: paciente?.sexo ?? 'nao_informado',
@@ -97,6 +102,16 @@ export function PacienteForm({ paciente, onPronto }: Props) {
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
       <Campo id="nome_completo" label="Nome completo" obrigatorio erro={errors.nome_completo?.message}>
         <Input id="nome_completo" autoFocus {...register('nome_completo')} />
+      </Campo>
+
+      {/* Opcional. Aparece na agenda, presença e reposição; o nome completo
+          (civil) segue nos documentos fiscais e no financeiro. */}
+      <Campo id="nome_social" label="Nome social" erro={errors.nome_social?.message}>
+        <Input
+          id="nome_social"
+          placeholder="Como a pessoa gosta de ser chamada"
+          {...register('nome_social')}
+        />
       </Campo>
 
       <div className="grid grid-cols-2 gap-4">

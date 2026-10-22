@@ -59,7 +59,7 @@ def _para_grade(
             ReservaNaGrade(
                 id=reserva.id,
                 patient_id=paciente.id,
-                paciente_nome=paciente.nome_completo,
+                paciente_nome=paciente.nome_exibicao,
                 posicao=reserva.posicao,
                 status=reserva.status,
                 origem=reserva.origem,

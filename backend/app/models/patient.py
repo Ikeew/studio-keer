@@ -59,6 +59,10 @@ class Patient(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     nome_completo: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    # Como a pessoa gosta de ser chamada. Quando preenchido, é o nome das telas
+    # do dia a dia (agenda, presença, reposição). Documento fiscal, contrato e
+    # financeiro continuam no nome civil (`nome_completo`).
+    nome_social: Mapped[str | None] = mapped_column(String(160), nullable=True)
     # Opcional porque a recepção nem sempre tem o CPF na hora do cadastro.
     # Único quando informado — daí o índice único parcial na migration.
     cpf: Mapped[str | None] = mapped_column(String(11), nullable=True)
@@ -88,6 +92,11 @@ class Patient(Base, TimestampMixin):
     # Exclusão lógica: apagar um paciente apagaria o histórico de agendamentos
     # e pagamentos junto.
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    @property
+    def nome_exibicao(self) -> str:
+        """O nome das telas de uso cotidiano: o social, se houver."""
+        return self.nome_social or self.nome_completo
 
     def __repr__(self) -> str:
         return f"<Patient {self.id} {self.nome_completo}>"

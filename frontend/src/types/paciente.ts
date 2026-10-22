@@ -30,6 +30,10 @@ export const ESTADO_CIVIL_LABEL: Record<EstadoCivil, string> = {
 export type Paciente = {
   id: number
   nome_completo: string
+  /** Como a pessoa gosta de ser chamada. */
+  nome_social: string | null
+  /** Nome das telas do dia a dia: o social, se houver; senão o civil. */
+  nome_exibicao: string
   cpf: string | null
   cpf_formatado: string | null
   data_nascimento: string | null

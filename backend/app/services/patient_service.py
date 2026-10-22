@@ -51,7 +51,10 @@ def _stmt_listagem(termo: str | None, incluir_inativos: bool) -> Select[tuple[Pa
         # compara só os dígitos: a recepção digita "(11) 98765-4321" e o banco
         # guarda "11987654321".
         digitos = normalizar_cpf(limpo)
-        condicoes = [Patient.nome_completo.ilike(f"%{limpo}%")]
+        condicoes = [
+            Patient.nome_completo.ilike(f"%{limpo}%"),
+            Patient.nome_social.ilike(f"%{limpo}%"),
+        ]
         if digitos:
             condicoes.append(
                 func.regexp_replace(Patient.telefone, r"\D", "", "g").like(f"%{digitos}%")

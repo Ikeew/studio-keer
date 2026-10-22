@@ -158,7 +158,7 @@ def listar_pendentes(db: DbSession, *, incluir_vencidas: bool = False) -> list[F
             FaltaPendente(
                 booking_id=reserva.id,
                 patient_id=paciente.id,
-                paciente_nome=paciente.nome_completo,
+                paciente_nome=paciente.nome_exibicao,
                 paciente_telefone=paciente.telefone,
                 servico_nome=servico.nome,
                 service_id=servico.id,
