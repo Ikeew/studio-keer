@@ -32,3 +32,30 @@ class TestUrlDoBanco:
         ):
             s = Settings(DATABASE_URL=url, SECRET_KEY="x" * 40)  # type: ignore[arg-type]
             assert str(s.DATABASE_URL).startswith("postgresql+psycopg://"), url
+
+    def test_migrations_usam_a_conexao_direta_do_neon(self) -> None:
+        """App no PgBouncer (`-pooler`), Alembic na conexão direta."""
+        from app.core.config import Settings
+
+        query = "?sslmode=require&channel_binding=require"
+        s = Settings(
+            DATABASE_URL="postgresql://u:p@ep-x-pooler.neon.tech/neondb" + query,  # type: ignore[arg-type]
+            DATABASE_URL_UNPOOLED="postgresql://u:p@ep-x.neon.tech/neondb" + query,  # type: ignore[arg-type]
+            SECRET_KEY="x" * 40,
+            _env_file=None,
+        )
+
+        assert s.url_migrations == "postgresql+psycopg://u:p@ep-x.neon.tech/neondb" + query
+        assert "-pooler" in str(s.DATABASE_URL)
+
+    def test_sem_conexao_direta_as_migrations_usam_a_principal(self) -> None:
+        from app.core.config import Settings
+
+        s = Settings(
+            DATABASE_URL="postgresql://u:p@db:5432/keer",  # type: ignore[arg-type]
+            DATABASE_URL_UNPOOLED=None,
+            SECRET_KEY="x" * 40,
+            _env_file=None,
+        )
+
+        assert s.url_migrations == "postgresql+psycopg://u:p@db:5432/keer"

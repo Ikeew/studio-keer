@@ -22,14 +22,25 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Studio Keer API"
     API_V1_PREFIX: str = "/api/v1"
 
+    # No Neon, DATABASE_URL é a conexão pooled (PgBouncer, host `-pooler`),
+    # usada pela app. Migrations precisam da direta: PgBouncer em modo
+    # transação não guarda estado de sessão, e o Alembic falha de formas que
+    # não mencionam pooling. Sem a direta (docker-compose, CI), o Alembic usa
+    # DATABASE_URL mesmo.
     DATABASE_URL: PostgresDsn
+    DATABASE_URL_UNPOOLED: PostgresDsn | None = None
 
-    @field_validator("DATABASE_URL", mode="before")
+    @property
+    def url_migrations(self) -> str:
+        return str(self.DATABASE_URL_UNPOOLED or self.DATABASE_URL)
+
+    @field_validator("DATABASE_URL", "DATABASE_URL_UNPOOLED", mode="before")
     @classmethod
     def normalizar_driver(cls, v: object) -> object:
-        """Aceita a URL como Render e Railway a entregam.
+        """Aceita a URL como Render, Railway e Neon a entregam.
 
-        Os dois publicam `postgres://user:senha@host/base`. O SQLAlchemy 2.0
+        Render e Railway publicam `postgres://user:senha@host/base`; o Neon,
+        `postgresql://`. O SQLAlchemy 2.0
         não reconhece o esquema `postgres://`, e mesmo `postgresql://` usaria
         o psycopg2, que não está instalado — a app subiria e morreria na
         primeira query, já em produção.

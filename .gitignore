@@ -28,3 +28,4 @@ dist/
 
 # Cache de build do TypeScript
 *.tsbuildinfo
+.neon

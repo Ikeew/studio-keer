@@ -1,14 +1,8 @@
-# Blueprint do Render — provisiona banco e API a partir do repositório.
+# Blueprint do Render — provisiona a API a partir do repositório.
 #
 # Uso: no painel do Render, New > Blueprint, apontando para este repositório.
-# O plano gratuito é suficiente para a apresentação; ver docs/deploy.md para
-# as limitações que ele impõe.
-
-databases:
-  - name: studio-keer-db
-    databaseName: keer
-    user: keer
-    plan: free
+# O banco NÃO é mais do Render: fica no Neon (projeto quiet-bar-22053390,
+# branch production), declarado em neon.ts na raiz. Ver docs/deploy.md.
 
 services:
   - type: web
@@ -24,9 +18,14 @@ services:
     healthCheckPath: /api/v1/health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: studio-keer-db
-          property: connectionString
+        # PREENCHER com a conexão POOLED do Neon (host com `-pooler`), que é a
+        # DATABASE_URL do `.env.local` gerado por `neon deploy`.
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        # PREENCHER com a conexão DIRETA do Neon (sem `-pooler`). É a que o
+        # start.sh usa para as migrations: PgBouncer em modo transação não
+        # guarda estado de sessão.
+        sync: false
       - key: SECRET_KEY
         # Gerado pelo Render e nunca visto por ninguém. Não versionar segredo.
         generateValue: true

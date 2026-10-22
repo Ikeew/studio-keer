@@ -68,13 +68,6 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 addopts = "-q"
 
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "--cov=app --cov-report=term-missing --cov-report=xml"
-testpaths = [
-    "tests",
-]
-
 [tool.coverage.run]
 source = ["app"]
 omit = [

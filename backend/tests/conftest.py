@@ -9,6 +9,10 @@ from pathlib import Path
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://keer:keer@localhost:5432/keer_test")
 os.environ.setdefault("SECRET_KEY", "chave-de-teste-com-no-minimo-32-caracteres!")
 os.environ.setdefault("ENVIRONMENT", "test")
+# Atribuição, não setdefault: o Alembic migra pela URL direta, e uma
+# DATABASE_URL_UNPOOLED herdada do shell ou do .env apontaria as migrations da
+# suíte para o banco de produção enquanto os testes rodam no de teste.
+os.environ["DATABASE_URL_UNPOOLED"] = os.environ["DATABASE_URL"]
 
 import pytest
 import sqlalchemy as sa
