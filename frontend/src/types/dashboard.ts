@@ -70,7 +70,8 @@ export type UsoDeFormaDePagamento = {
   /** null = "Não informada". */
   forma: FormaPagamento | null
   pagamentos: number
-  valor_centavos: number
+  /** Só para admin; null para os demais perfis. */
+  valor_centavos: number | null
 }
 
 export type ServicoNoPeriodo = {
@@ -125,7 +126,8 @@ export type ReservasPorOrigem = {
 
 export type Analise = {
   periodo: PeriodoDeAnalise
-  receita: ReceitaDoPeriodo
+  /** Só para admin; null para os demais perfis. */
+  receita: ReceitaDoPeriodo | null
   formas_pagamento: UsoDeFormaDePagamento[]
   servicos: ServicoNoPeriodo[]
   ocupacao: TaxaDeOcupacao

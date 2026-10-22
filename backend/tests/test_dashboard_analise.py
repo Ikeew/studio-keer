@@ -606,11 +606,9 @@ _CHAVES = {
 
 
 class TestApiDaAnalise:
-    def test_recepcao_recebe_o_contrato(
-        self, client: TestClient, db: Session, recepcao: User
-    ) -> None:
+    def test_admin_recebe_o_contrato(self, client: TestClient, db: Session, admin: User) -> None:
         criar_configuracao(db)
-        t = login(client, recepcao.email)
+        t = login(client, admin.email)
 
         r = client.get("/api/v1/dashboard/analise", headers=auth(t))
 
@@ -652,12 +650,12 @@ class TestApiDaAnalise:
             "remarcacao",
         ]
 
-    def test_datas_e_formas_no_json(self, client: TestClient, db: Session, recepcao: User) -> None:
+    def test_datas_e_formas_no_json(self, client: TestClient, db: Session, admin: User) -> None:
         p = criar_paciente(db, "Json")
         # Agora mesmo: a rota usa o relógio real, e o mês corrente sempre
         # está no período.
         _cobranca(db, p, valor=1_500, pago_em=datetime.now(FUSO), forma=None)
-        t = login(client, recepcao.email)
+        t = login(client, admin.email)
 
         corpo = client.get("/api/v1/dashboard/analise", params={"meses": 1}, headers=auth(t)).json()
 
@@ -665,6 +663,24 @@ class TestApiDaAnalise:
         date.fromisoformat(corpo["periodo"]["inicio"])  # "YYYY-MM-DD"
         assert corpo["formas_pagamento"] == [
             {"forma": None, "pagamentos": 1, "valor_centavos": 1_500}
+        ]
+
+    def test_recepcao_nao_recebe_valores(
+        self, client: TestClient, db: Session, recepcao: User
+    ) -> None:
+        """Valores são só da proprietária — escondidos na API, não só na tela."""
+        criar_configuracao(db)
+        p = criar_paciente(db, "Sem Valores")
+        _cobranca(db, p, valor=1_500, pago_em=datetime.now(FUSO), forma=None)
+        t = login(client, recepcao.email)
+
+        corpo = client.get("/api/v1/dashboard/analise", headers=auth(t)).json()
+
+        assert set(corpo) == _CHAVES
+        assert corpo["receita"] is None
+        # A contagem fica: é a própria recepção que registra cada baixa.
+        assert corpo["formas_pagamento"] == [
+            {"forma": None, "pagamentos": 1, "valor_centavos": None}
         ]
 
     def test_admin_ve(self, client: TestClient, db: Session, admin: User) -> None:

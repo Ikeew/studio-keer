@@ -32,9 +32,11 @@ export function useCobrancas(params: {
   })
 }
 
-export function useTotais() {
+/** Só admin: a API recusa os demais perfis com 403. */
+export function useTotais(habilitado: boolean) {
   return useQuery({
     queryKey: ['cobrancas', 'totais'],
+    enabled: habilitado,
     queryFn: async (): Promise<TotaisFinanceiros> => {
       const { data } = await api.get<TotaisFinanceiros>('/charges/totais')
       return data

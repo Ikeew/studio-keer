@@ -26,13 +26,22 @@ export function ResumoDoPeriodo({ analise, className }: Props) {
   const registradas =
     presenca.presentes + presenca.faltas_justificadas + presenca.faltas_nao_justificadas
   const reposicoes = origens.find((o) => o.origem === 'reposicao')?.reservas ?? 0
+  const pagamentos = analise.formas_pagamento.reduce((s, f) => s + f.pagamentos, 0)
 
   const numeros: Numero[] = [
-    {
-      rotulo: 'Recebido',
-      valor: reais(receita.recebido_centavos),
-      contexto: contagem(receita.pagamentos, 'pagamento', 'pagamentos'),
-    },
+    // Valor recebido só para o admin. Os demais veem quantas baixas houve,
+    // que é o que eles mesmos registraram.
+    receita
+      ? {
+          rotulo: 'Recebido',
+          valor: reais(receita.recebido_centavos),
+          contexto: contagem(receita.pagamentos, 'pagamento', 'pagamentos'),
+        }
+      : {
+          rotulo: 'Pagamentos',
+          valor: pagamentos.toLocaleString('pt-BR'),
+          contexto: 'registrados no período',
+        },
     {
       rotulo: 'Ocupação',
       valor: `${ocupacao.percentual}%`,

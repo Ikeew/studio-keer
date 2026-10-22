@@ -324,6 +324,30 @@ class TestRbac:
         assert client.get("/api/v1/charges/totais", headers=auth(t)).status_code == 403
         assert client.get("/api/v1/packages", headers=auth(t)).status_code == 403
 
+    def test_totais_so_para_admin(
+        self, client: TestClient, db: Session, recepcao: User, admin: User
+    ) -> None:
+        """Os três cards são da proprietária. A recepção registra pagamentos,
+        mas não vê o caixa — bloqueado na API, não só escondido na tela."""
+        criar_configuracao(db)
+
+        r_recepcao = client.get(
+            "/api/v1/charges/totais", headers=auth(login(client, recepcao.email))
+        )
+        r_admin = client.get("/api/v1/charges/totais", headers=auth(login(client, admin.email)))
+
+        assert r_recepcao.status_code == 403
+        assert r_admin.status_code == 200
+        assert set(r_admin.json()) == {"recebido_centavos", "pendente_centavos", "vencido_centavos"}
+
+    def test_recepcao_continua_registrando_pagamento(
+        self, client: TestClient, db: Session, recepcao: User
+    ) -> None:
+        criar_configuracao(db)
+        t = login(client, recepcao.email)
+
+        assert client.get("/api/v1/charges", headers=auth(t)).status_code == 200
+
 
 class TestFluxoDePagamento:
     def test_cancelada_nao_pode_ser_paga(

@@ -81,8 +81,9 @@ def listar(
     )
 
 
-@router.get("/charges/totais", response_model=TotaisRead, dependencies=[OPERADORES])
+@router.get("/charges/totais", response_model=TotaisRead, dependencies=[SO_ADMIN])
 def totais(db: Db) -> TotaisRead:
+    """Total recebido, a receber e vencido. Só a proprietária vê."""
     t = charge_service.totais(db)
     return TotaisRead(
         recebido_centavos=t.recebido_centavos,

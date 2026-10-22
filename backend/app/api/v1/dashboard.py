@@ -112,7 +112,27 @@ def estatisticas_de_servicos(db: Db) -> list[EstatisticaDeServicoRead]:
     ]
 
 
-def _analise_read(a: dashboard_service.Analise) -> AnaliseRead:
+def _analise_read(a: dashboard_service.Analise, *, com_valores: bool) -> AnaliseRead:
+    """`com_valores=False` tira todo valor em dinheiro da resposta.
+
+    Esconder na tela não basta: o dado continuaria a uma chamada de distância.
+    A contagem de pagamentos por forma fica, porque é a própria recepção que
+    registra cada baixa.
+    """
+    receita = ReceitaRead(
+        recebido_centavos=a.receita.recebido_centavos,
+        pagamentos=a.receita.pagamentos,
+        serie=[
+            BaldeDeReceitaRead(
+                inicio=b.inicio,
+                fim=b.fim,
+                recebido_centavos=b.recebido_centavos,
+                por_tipo=dict(b.por_tipo),
+                em_andamento=b.em_andamento,
+            )
+            for b in a.receita.serie
+        ],
+    )
     return AnaliseRead(
         periodo=PeriodoRead(
             inicio=a.periodo.inicio,
@@ -120,23 +140,12 @@ def _analise_read(a: dashboard_service.Analise) -> AnaliseRead:
             meses=a.periodo.meses,
             granularidade=a.periodo.granularidade,
         ),
-        receita=ReceitaRead(
-            recebido_centavos=a.receita.recebido_centavos,
-            pagamentos=a.receita.pagamentos,
-            serie=[
-                BaldeDeReceitaRead(
-                    inicio=b.inicio,
-                    fim=b.fim,
-                    recebido_centavos=b.recebido_centavos,
-                    por_tipo=dict(b.por_tipo),
-                    em_andamento=b.em_andamento,
-                )
-                for b in a.receita.serie
-            ],
-        ),
+        receita=receita if com_valores else None,
         formas_pagamento=[
             FormaDePagamentoRead(
-                forma=f.forma, pagamentos=f.pagamentos, valor_centavos=f.valor_centavos
+                forma=f.forma,
+                pagamentos=f.pagamentos,
+                valor_centavos=f.valor_centavos if com_valores else None,
             )
             for f in a.formas_pagamento
         ],
@@ -184,6 +193,7 @@ def _analise_read(a: dashboard_service.Analise) -> AnaliseRead:
 @router.get("/dashboard/analise", response_model=AnaliseRead, dependencies=[GESTAO])
 def analise(
     db: Db,
+    usuario: CurrentUser,
     meses: Annotated[
         int,
         Query(
@@ -196,6 +206,10 @@ def analise(
     """Análise do período: receita, formas de pagamento, serviços, ocupação,
     horários, presença e origem das reservas.
 
+    Receita e valores em dinheiro só vão para o admin.
+
     As definições de cada indicador estão em `dashboard_service`.
     """
-    return _analise_read(dashboard_service.analise(db, meses))
+    return _analise_read(
+        dashboard_service.analise(db, meses), com_valores=usuario.papel is Papel.ADMIN
+    )

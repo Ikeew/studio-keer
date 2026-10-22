@@ -76,12 +76,18 @@ export function PainelDeAnalise() {
           )}
         >
           <ResumoDoPeriodo analise={data} className="xl:col-span-12" />
-          <FormasDePagamento formas={data.formas_pagamento} className="xl:col-span-5" />
-          <ReceitaNoTempo
-            receita={data.receita}
-            granularidade={data.periodo.granularidade}
-            className="xl:col-span-7"
+          {/* Receita só vem para o admin; sem ela, as formas ocupam a linha. */}
+          <FormasDePagamento
+            formas={data.formas_pagamento}
+            className={data.receita ? 'xl:col-span-5' : 'xl:col-span-12'}
           />
+          {data.receita && (
+            <ReceitaNoTempo
+              receita={data.receita}
+              granularidade={data.periodo.granularidade}
+              className="xl:col-span-7"
+            />
+          )}
           <HorariosDePico horarios={data.horarios} className="xl:col-span-7" />
           {/* O mapa de calor é bem mais alto que uma lista ranqueada: ao lado
               dele vão duas, empilhadas, e a última estica para as bases

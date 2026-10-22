@@ -73,7 +73,7 @@ export function Financeiro() {
     return () => clearTimeout(t)
   }, [busca])
 
-  const { data: totais } = useTotais()
+  const { data: totais } = useTotais(ehAdmin)
   const { data: pagina, isPending } = useCobrancas({ filtro, busca: buscaAplicada })
   const desfazer = useDesfazerPagamento()
   const cancelar = useCancelarCobranca()
@@ -114,24 +114,27 @@ export function Financeiro() {
 
       {aviso && <Aviso tipo="info">{aviso}</Aviso>}
 
-      <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-        <CardDeTotal
-          rotulo="Total Recebido"
-          valor={totais?.recebido_centavos ?? 0}
-          cor="text-accent"
-        />
-        <CardDeTotal
-          rotulo="Total Pendente"
-          valor={totais?.pendente_centavos ?? 0}
-          cor="text-brand"
-        />
-        <CardDeTotal
-          rotulo="Total Vencido"
-          valor={totais?.vencido_centavos ?? 0}
-          cor="text-danger"
-          alerta
-        />
-      </div>
+      {/* Os totais são só da proprietária — a API também recusa os demais. */}
+      {ehAdmin && (
+        <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+          <CardDeTotal
+            rotulo="Total Recebido"
+            valor={totais?.recebido_centavos ?? 0}
+            cor="text-accent"
+          />
+          <CardDeTotal
+            rotulo="Total Pendente"
+            valor={totais?.pendente_centavos ?? 0}
+            cor="text-brand"
+          />
+          <CardDeTotal
+            rotulo="Total Vencido"
+            valor={totais?.vencido_centavos ?? 0}
+            cor="text-danger"
+            alerta
+          />
+        </div>
+      )}
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         {FILTROS.map((f) => (

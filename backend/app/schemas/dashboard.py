@@ -79,7 +79,8 @@ class FormaDePagamentoRead(BaseModel):
     #: None = "Não informada".
     forma: FormaPagamento | None
     pagamentos: int
-    valor_centavos: int
+    #: Só para admin; None para os demais perfis (valores são da proprietária).
+    valor_centavos: int | None
 
 
 class ServicoNoPeriodoRead(BaseModel):
@@ -130,7 +131,8 @@ class OrigemRead(BaseModel):
 
 class AnaliseRead(BaseModel):
     periodo: PeriodoRead
-    receita: ReceitaRead
+    #: Só para admin; None para os demais perfis (valores são da proprietária).
+    receita: ReceitaRead | None
     formas_pagamento: list[FormaDePagamentoRead]
     servicos: list[ServicoNoPeriodoRead]
     ocupacao: TaxaDeOcupacaoRead
