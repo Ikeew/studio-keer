@@ -11,6 +11,9 @@ class ChargeRead(BaseModel):
     id: int
     patient_id: int
     paciente_nome: str
+    #: "123.456.789-09", para a nota fiscal. Só para admin: None para os
+    #: demais perfis, e também quando o paciente não tem CPF cadastrado.
+    paciente_cpf: str | None = None
     tipo: TipoCobranca
     descricao: str
     competencia_inicio: date | None

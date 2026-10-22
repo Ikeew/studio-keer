@@ -5,13 +5,14 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
+from app.core.cpf import formatar_cpf
 from app.core.deps import CurrentUser, require_papel
 from app.db.session import get_db
 from app.models.charge import Charge
 from app.models.package import Package
 from app.models.patient import Patient
 from app.models.service import Service
-from app.models.user import Papel
+from app.models.user import Papel, User
 from app.schemas.financeiro import (
     CancelarCobranca,
     ChargeRead,
@@ -35,11 +36,13 @@ OPERADORES = Depends(require_papel(Papel.ADMIN, Papel.RECEPCAO))
 SO_ADMIN = Depends(require_papel(Papel.ADMIN))
 
 
-def _para_leitura(cobranca: Charge, paciente: Patient) -> ChargeRead:
+def _para_leitura(cobranca: Charge, paciente: Patient, *, com_cpf: bool = False) -> ChargeRead:
+    """`com_cpf` só para admin: CPF é dado pessoal e a nota é emitida por ela."""
     return ChargeRead(
         id=cobranca.id,
         patient_id=paciente.id,
         paciente_nome=paciente.nome_completo,
+        paciente_cpf=formatar_cpf(paciente.cpf) if com_cpf and paciente.cpf else None,
         tipo=cobranca.tipo,
         descricao=cobranca.descricao,
         competencia_inicio=cobranca.competencia_inicio,
@@ -52,15 +55,20 @@ def _para_leitura(cobranca: Charge, paciente: Patient) -> ChargeRead:
     )
 
 
-def _recarregar(db: DbSession, cobranca: Charge) -> ChargeRead:
+def _recarregar(db: DbSession, cobranca: Charge, *, com_cpf: bool = False) -> ChargeRead:
     paciente = db.get(Patient, cobranca.patient_id)
     assert paciente is not None
-    return _para_leitura(cobranca, paciente)
+    return _para_leitura(cobranca, paciente, com_cpf=com_cpf)
+
+
+def _ve_cpf(usuario: User) -> bool:
+    return usuario.papel is Papel.ADMIN
 
 
 @router.get("/charges", response_model=PaginaDeCobrancas, dependencies=[OPERADORES])
 def listar(
     db: Db,
+    usuario: CurrentUser,
     filtro: Annotated[
         str | None, Query(description="pendentes | pagos | vencidos | cancelados")
     ] = None,
@@ -74,7 +82,7 @@ def listar(
         db, filtro=filtro, busca=busca, pagina=pagina, tamanho=tamanho
     )
     return PaginaDeCobrancas(
-        itens=[_para_leitura(c, p) for c, p in linhas],
+        itens=[_para_leitura(c, p, com_cpf=_ve_cpf(usuario)) for c, p in linhas],
         total=total,
         pagina=pagina,
         tamanho=tamanho,
@@ -93,13 +101,13 @@ def totais(db: Db) -> TotaisRead:
 
 
 @router.get("/charges/{charge_id}", response_model=ChargeRead, dependencies=[OPERADORES])
-def obter(charge_id: int, db: Db) -> ChargeRead:
+def obter(charge_id: int, db: Db, usuario: CurrentUser) -> ChargeRead:
     """Consistência: toda entidade tem GET por id.
 
     Sem esta rota, pedir uma cobrança pelo id devolvia 405 — um erro que não
     diz nada a quem está integrando ou depurando.
     """
-    return _recarregar(db, charge_service.buscar(db, charge_id))
+    return _recarregar(db, charge_service.buscar(db, charge_id), com_cpf=_ve_cpf(usuario))
 
 
 @router.post(

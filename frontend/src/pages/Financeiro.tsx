@@ -179,6 +179,8 @@ export function Financeiro() {
                 {/* Sem coluna Descrição, a pedido da equipe. O dado continua no
                     banco, na busca e nos modais de pagamento e cancelamento. */}
                 <th className="p-4 font-medium">Paciente</th>
+                {/* CPF para a nota fiscal: só a proprietária (a API também). */}
+                {ehAdmin && <th className="p-4 font-medium">CPF</th>}
                 <th className="p-4 font-medium">Valor</th>
                 <th className="p-4 font-medium">Vencimento</th>
                 <th className="p-4 font-medium">Status</th>
@@ -189,6 +191,11 @@ export function Financeiro() {
               {pagina.itens.map((c) => (
                 <tr key={c.id} className="border-t border-edge">
                   <td className="p-4">{c.paciente_nome}</td>
+                  {ehAdmin && (
+                    <td className="whitespace-nowrap p-4 tabular-nums">
+                      {c.paciente_cpf ?? <span className="text-sm text-muted">não informado</span>}
+                    </td>
+                  )}
                   <td className="p-4 font-medium">{reais(c.valor_centavos)}</td>
                   <td className="p-4">
                     {formatarData(c.vencimento)}

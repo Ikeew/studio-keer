@@ -30,6 +30,8 @@ export type Cobranca = {
   id: number
   patient_id: number
   paciente_nome: string
+  /** Formatado, para a nota fiscal. Só vem para admin; null também sem CPF. */
+  paciente_cpf: string | null
   tipo: 'mensalidade' | 'pacote' | 'avulsa'
   descricao: string
   competencia_inicio: string | null

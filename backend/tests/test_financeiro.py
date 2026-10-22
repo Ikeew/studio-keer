@@ -455,3 +455,49 @@ class TestDinheiroEmCentavos:
         cobranca = db.execute(select(Charge)).scalars().one()
         assert isinstance(cobranca.valor_centavos, int)
         assert cobranca.valor_centavos == 12_345
+
+
+class TestCpfNoFinanceiro:
+    """CPF para a nota fiscal. Só a proprietária vê — a nota é emitida por ela."""
+
+    def _cobranca_com_cpf(self, db: Session, cpf: str | None) -> Charge:
+        paciente = criar_paciente(db, "Paciente da Nota")
+        paciente.cpf = cpf
+        cobranca = Charge(
+            patient_id=paciente.id,
+            tipo=TipoCobranca.AVULSA,
+            descricao="Avaliação",
+            valor_centavos=10_000,
+            vencimento=date.today(),
+        )
+        db.add(cobranca)
+        db.flush()
+        return cobranca
+
+    def test_admin_ve_cpf_formatado(self, client: TestClient, db: Session, admin: User) -> None:
+        cobranca = self._cobranca_com_cpf(db, "52998224725")
+        t = login(client, admin.email)
+
+        lista = client.get("/api/v1/charges", headers=auth(t)).json()["itens"]
+        unica = client.get(f"/api/v1/charges/{cobranca.id}", headers=auth(t)).json()
+
+        assert [c["paciente_cpf"] for c in lista] == ["529.982.247-25"]
+        assert unica["paciente_cpf"] == "529.982.247-25"
+
+    def test_recepcao_nao_recebe_cpf(self, client: TestClient, db: Session, recepcao: User) -> None:
+        cobranca = self._cobranca_com_cpf(db, "52998224725")
+        t = login(client, recepcao.email)
+
+        lista = client.get("/api/v1/charges", headers=auth(t))
+        unica = client.get(f"/api/v1/charges/{cobranca.id}", headers=auth(t))
+
+        assert "52998224725" not in lista.text and "529.982.247-25" not in lista.text
+        assert unica.json()["paciente_cpf"] is None
+
+    def test_paciente_sem_cpf(self, client: TestClient, db: Session, admin: User) -> None:
+        self._cobranca_com_cpf(db, None)
+        t = login(client, admin.email)
+
+        itens = client.get("/api/v1/charges", headers=auth(t)).json()["itens"]
+
+        assert itens[0]["paciente_cpf"] is None
