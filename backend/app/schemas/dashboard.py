@@ -89,6 +89,8 @@ class ServicoNoPeriodoRead(BaseModel):
     cor: str
     sessoes: int
     reservas: int
+    #: Reservas com presença registrada — a aula que de fato aconteceu.
+    realizadas: int
     ocupacao_percentual: int
 
 

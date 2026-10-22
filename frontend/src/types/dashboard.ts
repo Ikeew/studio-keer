@@ -80,6 +80,8 @@ export type ServicoNoPeriodo = {
   cor: string
   sessoes: number
   reservas: number
+  /** Reservas com presença registrada — a aula que de fato aconteceu. */
+  realizadas: number
   ocupacao_percentual: number
 }
 

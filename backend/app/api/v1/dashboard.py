@@ -156,6 +156,7 @@ def _analise_read(a: dashboard_service.Analise, *, com_valores: bool) -> Analise
                 cor=s.cor,
                 sessoes=s.sessoes,
                 reservas=s.reservas,
+                realizadas=s.realizadas,
                 ocupacao_percentual=s.ocupacao_percentual,
             )
             for s in a.servicos

@@ -300,6 +300,23 @@ class TestSerieDeReceita:
 
 
 class TestServicosNoPeriodo:
+    def test_realizadas_conta_so_presenca(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """Marcadas é demanda; realizadas é a aula que aconteceu."""
+        servico = criar_servico(db, nome="Pilates Realizado")
+        s1 = criar_sessao(db, instrutor, servico=servico, dia=date(2026, 9, 14), hora=8)
+        veio = _reservar(db, s1, recepcao, "Veio")
+        faltou = _reservar(db, s1, recepcao, "Faltou")
+        _reservar(db, s1, recepcao, "Sem registro")
+        booking_service.registrar_presenca(db, veio.id)
+        booking_service.registrar_falta(db, faltou.id)
+
+        por_nome = {s.nome: s for s in _analise(db).servicos}
+
+        assert por_nome["Pilates Realizado"].reservas == 3
+        assert por_nome["Pilates Realizado"].realizadas == 1
+
     def test_ranking_e_quem_entra(self, db: Session, instrutor: User, recepcao: User) -> None:
         alfa = criar_servico(db, nome="Alfa Pilates")
         beta = criar_servico(db, nome="Beta Fisio")
