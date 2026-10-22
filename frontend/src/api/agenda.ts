@@ -110,6 +110,13 @@ export function useFalta() {
   )
 }
 
+/** Desfaz presença ou falta registrada por engano. */
+export function useLimparPresenca() {
+  return useAcaoNaAgenda(
+    async (id: number) => (await api.post(`/bookings/${id}/limpar-presenca`)).data,
+  )
+}
+
 export function useRemarcar() {
   return useAcaoNaAgenda(
     async (v: { id: number; nova_session_id: number; origem?: Origem }) =>

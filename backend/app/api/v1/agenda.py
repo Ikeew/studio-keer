@@ -33,7 +33,11 @@ LEITURA = Depends(require_papel(Papel.ADMIN, Papel.RECEPCAO, Papel.INSTRUTOR))
 ESCRITA = Depends(require_papel(Papel.ADMIN, Papel.RECEPCAO))
 
 
-def _para_grade(item: schedule_service.SessaoNaGrade) -> SessaoNaGrade:
+def _para_grade(
+    item: schedule_service.SessaoNaGrade,
+    registros: dict[int, booking_service.UltimoRegistro] | None = None,
+) -> SessaoNaGrade:
+    registros = registros or {}
     local = item.sessao.inicia_em.astimezone(FUSO)
     return SessaoNaGrade(
         id=item.sessao.id,
@@ -60,6 +64,8 @@ def _para_grade(item: schedule_service.SessaoNaGrade) -> SessaoNaGrade:
                 status=reserva.status,
                 origem=reserva.origem,
                 justificada=reserva.justificada,
+                presenca_por=registros[reserva.id].por if reserva.id in registros else None,
+                presenca_em=registros[reserva.id].em if reserva.id in registros else None,
             )
             for reserva, paciente in item.reservas
         ],
@@ -79,6 +85,10 @@ def grade_semanal(
     inicio = schedule_service.inicio_da_semana(referencia or date.today())
     janelas = schedule_service.janela_da_semana(db, inicio)
     fim = janelas[-1].dia
+    sessoes = schedule_service.sessoes_da_semana(db, inicio, fim)
+    registros = booking_service.ultimos_registros(
+        db, [reserva.id for s in sessoes for reserva, _ in s.reservas]
+    )
 
     return GradeSemanal(
         inicio=inicio,
@@ -96,7 +106,7 @@ def grade_semanal(
             )
             for j in janelas
         ],
-        sessoes=[_para_grade(s) for s in schedule_service.sessoes_da_semana(db, inicio, fim)],
+        sessoes=[_para_grade(s, registros) for s in sessoes],
     )
 
 
@@ -199,18 +209,39 @@ def confirmar_reserva(booking_id: int, db: Db) -> BookingRead:
 
 
 @router.post("/bookings/{booking_id}/presenca", response_model=BookingRead, dependencies=[ESCRITA])
-def registrar_presenca(booking_id: int, db: Db) -> BookingRead:
-    reserva = booking_service.registrar_presenca(db, booking_id)
+def registrar_presenca(booking_id: int, db: Db, usuario: CurrentUser) -> BookingRead:
+    """Marca presença. Também corrige uma falta marcada por engano.
+
+    Recusa com 409 se a falta já foi reposta: a reposição precisa ser
+    cancelada antes.
+    """
+    reserva = booking_service.registrar_presenca(db, booking_id, alterado_por_id=usuario.id)
     db.commit()
     return BookingRead.model_validate(reserva)
 
 
 @router.post("/bookings/{booking_id}/falta", response_model=BookingRead, dependencies=[ESCRITA])
-def registrar_falta(booking_id: int, dados: BookingFalta, db: Db) -> BookingRead:
+def registrar_falta(
+    booking_id: int, dados: BookingFalta, db: Db, usuario: CurrentUser
+) -> BookingRead:
     """Marca falta. A recepção decide se é justificada — o sistema não infere."""
     reserva = booking_service.registrar_falta(
-        db, booking_id, justificada=dados.justificada, motivo=dados.motivo
+        db,
+        booking_id,
+        justificada=dados.justificada,
+        motivo=dados.motivo,
+        alterado_por_id=usuario.id,
     )
+    db.commit()
+    return BookingRead.model_validate(reserva)
+
+
+@router.post(
+    "/bookings/{booking_id}/limpar-presenca", response_model=BookingRead, dependencies=[ESCRITA]
+)
+def limpar_presenca(booking_id: int, db: Db, usuario: CurrentUser) -> BookingRead:
+    """Desfaz o registro de presença ou falta feito por engano."""
+    reserva = booking_service.limpar_presenca(db, booking_id, alterado_por_id=usuario.id)
     db.commit()
     return BookingRead.model_validate(reserva)
 

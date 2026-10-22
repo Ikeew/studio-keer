@@ -50,6 +50,10 @@ class ReservaNaGrade(BaseModel):
     status: StatusReserva
     origem: OrigemReserva
     justificada: bool
+    #: Quem registrou presença/falta por último, e quando. Dado com
+    #: consequência financeira: a recepção precisa ver quem marcou.
+    presenca_por: str | None = None
+    presenca_em: datetime | None = None
 
 
 class SessaoNaGrade(BaseModel):

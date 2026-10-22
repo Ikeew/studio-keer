@@ -5,6 +5,7 @@ import {
   useConfirmarReserva,
   useCriarReserva,
   useFalta,
+  useLimparPresenca,
   usePresenca,
 } from '@/api/agenda'
 import { usePacientes } from '@/api/pacientes'
@@ -12,6 +13,7 @@ import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Campo, Input, Select } from '@/components/ui/Campo'
 import { cn } from '@/lib/cn'
+import { dataHora } from '@/lib/formato'
 import { ORIGEM_LABEL, STATUS_LABEL, type SessaoNaGrade } from '@/types/agenda'
 
 type Props = {
@@ -35,6 +37,7 @@ export function PainelDaSessao({ sessao, onRemarcar }: Props) {
   const confirmar = useConfirmarReserva()
   const presenca = usePresenca()
   const falta = useFalta()
+  const limpar = useLimparPresenca()
 
   const jaNaTurma = new Set(sessao.reservas.map((r) => r.patient_id))
   const disponiveis = (pagina?.itens ?? []).filter((p) => !jaNaTurma.has(p.id))
@@ -79,7 +82,12 @@ export function PainelDaSessao({ sessao, onRemarcar }: Props) {
                   {r.status === 'falta' && r.justificada && ' · justificada'}
                 </span>
               </div>
-              <p className="mt-1 text-sm text-muted">{ORIGEM_LABEL[r.origem]}</p>
+              <p className="mt-1 text-sm text-muted">
+                {ORIGEM_LABEL[r.origem]}
+                {r.presenca_por && r.presenca_em && (
+                  <> · registrado por {r.presenca_por} em {dataHora(r.presenca_em)}</>
+                )}
+              </p>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {r.status === 'agendada' && (
@@ -185,6 +193,38 @@ export function PainelDaSessao({ sessao, onRemarcar }: Props) {
                     }
                   >
                     Justificar falta
+                  </Button>
+                )}
+                {/* Correção de registro errado. Se a falta já foi reposta, o
+                    backend recusa e a mensagem diz o que fazer. */}
+                {r.status === 'presente' && (
+                  <Button
+                    variante="secundario"
+                    className="px-3 py-2 text-sm"
+                    onClick={() =>
+                      agir(() => falta.mutateAsync({ id: r.id, justificada: false }))
+                    }
+                  >
+                    Corrigir: faltou
+                  </Button>
+                )}
+                {r.status === 'falta' && (
+                  <Button
+                    variante="secundario"
+                    className="px-3 py-2 text-sm"
+                    onClick={() => agir(() => presenca.mutateAsync(r.id))}
+                  >
+                    Corrigir: presente
+                  </Button>
+                )}
+                {(r.status === 'presente' || r.status === 'falta') && (
+                  <Button
+                    variante="secundario"
+                    className="px-3 py-2 text-sm"
+                    title="Volta a reserva para sem registro de presença"
+                    onClick={() => agir(() => limpar.mutateAsync(r.id))}
+                  >
+                    Limpar registro
                   </Button>
                 )}
               </div>

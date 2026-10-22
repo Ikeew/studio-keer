@@ -33,6 +33,9 @@ export type ReservaNaGrade = {
   status: StatusReserva
   origem: Origem
   justificada: boolean
+  /** Quem registrou presença/falta por último, e quando. */
+  presenca_por: string | null
+  presenca_em: string | null
 }
 
 export type SessaoNaGrade = {
