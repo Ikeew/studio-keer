@@ -132,6 +132,136 @@ class TestListagem:
         assert p.repor_ate is not None
 
 
+def _reservar(db: Session, instrutor: User, recepcao: User, *, hora: int = 8) -> Booking:
+    sessao = criar_sessao(db, instrutor, hora=hora)
+    return booking_service.criar(
+        db,
+        session_id=sessao.id,
+        patient_id=criar_paciente(db, f"Avisou {hora}").id,
+        criado_por_id=recepcao.id,
+    )
+
+
+class TestAvisoDaDireitoAReposicao:
+    """Confirmado pela cliente: quem avisa que não vem também repõe."""
+
+    def test_cancelado_com_aviso_aparece(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        criar_configuracao(db)
+        reserva = _reservar(db, instrutor, recepcao)
+
+        booking_service.cancelar(db, reserva.id, motivo="Viagem", com_aviso=True)
+
+        pendentes = reposicao_service.listar_pendentes(db)
+        assert [p.booking_id for p in pendentes] == [reserva.id]
+        assert pendentes[0].tipo == "aviso"
+        assert pendentes[0].motivo == "Viagem"
+
+    def test_cancelado_sem_aviso_nao_aparece(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """Reserva desfeita (marcada por engano) não gera direito."""
+        criar_configuracao(db)
+        reserva = _reservar(db, instrutor, recepcao)
+
+        booking_service.cancelar(db, reserva.id, motivo="Marcada por engano")
+
+        assert reposicao_service.listar_pendentes(db) == []
+
+    def test_remarcacao_nao_gera_direito(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """Remarcar cancela a original, mas o paciente já tem outro horário."""
+        criar_configuracao(db)
+        reserva = _reservar(db, instrutor, recepcao)
+        destino = criar_sessao(db, instrutor, hora=10)
+
+        booking_service.remarcar(
+            db, reserva.id, nova_session_id=destino.id, criado_por_id=recepcao.id
+        )
+
+        assert reposicao_service.listar_pendentes(db) == []
+
+    def test_aviso_ja_reposto_sai_da_lista(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        criar_configuracao(db)
+        reserva = _reservar(db, instrutor, recepcao)
+        booking_service.cancelar(db, reserva.id, com_aviso=True)
+        destino = criar_sessao(db, instrutor, hora=10)
+
+        booking_service.criar(
+            db,
+            session_id=destino.id,
+            patient_id=reserva.patient_id,
+            criado_por_id=recepcao.id,
+            origem=OrigemReserva.REPOSICAO,
+            substitui_booking_id=reserva.id,
+        )
+
+        assert reposicao_service.listar_pendentes(db) == []
+
+    def test_avisar_que_nao_vem_na_reposicao_nao_dobra_o_direito(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """Quem volta a ficar pendente é a falta original, uma vez só."""
+        criar_configuracao(db)
+        falta = _faltar(db, instrutor, recepcao, justificada=True)
+        destino = criar_sessao(db, instrutor, hora=10)
+        reposicao = booking_service.criar(
+            db,
+            session_id=destino.id,
+            patient_id=falta.patient_id,
+            criado_por_id=recepcao.id,
+            origem=OrigemReserva.REPOSICAO,
+            substitui_booking_id=falta.id,
+        )
+
+        booking_service.cancelar(db, reposicao.id, com_aviso=True)
+
+        assert [p.booking_id for p in reposicao_service.listar_pendentes(db)] == [falta.id]
+
+    def test_aviso_pela_api(
+        self, client: TestClient, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        criar_configuracao(db)
+        reserva = _reservar(db, instrutor, recepcao)
+        t = login(client, recepcao.email)
+
+        r = client.post(
+            f"/api/v1/bookings/{reserva.id}/cancelar",
+            json={"motivo": "Avisou que não vem", "com_aviso": True},
+            headers=auth(t),
+        )
+
+        assert r.status_code == 200
+        pendentes = client.get("/api/v1/reposicoes-pendentes", headers=auth(t)).json()
+        assert [(p["booking_id"], p["tipo"]) for p in pendentes] == [(reserva.id, "aviso")]
+
+
+class TestJustificarDepois:
+    def test_falta_justificada_depois_entra_na_lista(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """O atestado chega no dia seguinte: a recepção justifica e a falta entra."""
+        criar_configuracao(db)
+        falta = _faltar(db, instrutor, recepcao, justificada=False)
+        assert reposicao_service.listar_pendentes(db) == []
+
+        booking_service.registrar_falta(db, falta.id, justificada=True, motivo="Atestado")
+
+        assert [p.booking_id for p in reposicao_service.listar_pendentes(db)] == [falta.id]
+
+
+def test_hoje_e_o_dia_do_studio_nao_o_do_servidor() -> None:
+    from datetime import datetime
+
+    from app.services.schedule_service import FUSO
+
+    assert reposicao_service.hoje_no_studio() == datetime.now(FUSO).date()
+
+
 class TestJanelaDeReposicao:
     """A janela é OPERACIONAL e independente do ciclo de cobrança.
 

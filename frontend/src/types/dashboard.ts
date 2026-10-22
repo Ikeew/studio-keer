@@ -48,7 +48,7 @@ export type PeriodoDeAnalise = {
   granularidade: 'semana' | 'mes'
 }
 
-export type TipoDeCobranca = 'mensalidade' | 'pacote' | 'avulsa'
+export type TipoDeCobranca = 'mensalidade' | 'pacote' | 'avulsa' | 'produto'
 
 export type BaldeDeReceita = {
   inicio: string
@@ -70,7 +70,8 @@ export type UsoDeFormaDePagamento = {
   /** null = "Não informada". */
   forma: FormaPagamento | null
   pagamentos: number
-  valor_centavos: number
+  /** Só para admin; null para os demais perfis. */
+  valor_centavos: number | null
 }
 
 export type ServicoNoPeriodo = {
@@ -79,6 +80,8 @@ export type ServicoNoPeriodo = {
   cor: string
   sessoes: number
   reservas: number
+  /** Reservas com presença registrada — a aula que de fato aconteceu. */
+  realizadas: number
   ocupacao_percentual: number
 }
 
@@ -125,7 +128,8 @@ export type ReservasPorOrigem = {
 
 export type Analise = {
   periodo: PeriodoDeAnalise
-  receita: ReceitaDoPeriodo
+  /** Só para admin; null para os demais perfis. */
+  receita: ReceitaDoPeriodo | null
   formas_pagamento: UsoDeFormaDePagamento[]
   servicos: ServicoNoPeriodo[]
   ocupacao: TaxaDeOcupacao

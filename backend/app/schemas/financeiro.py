@@ -9,13 +9,22 @@ class ChargeRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    patient_id: int
+    #: Nulo em venda de produto para quem não é paciente.
+    patient_id: int | None
+    #: Nome civil do paciente, ou o do comprador numa venda de balcão.
     paciente_nome: str
+    #: "123.456.789-09", para a nota fiscal. Só para admin: None para os
+    #: demais perfis, e também quando o paciente não tem CPF cadastrado.
+    paciente_cpf: str | None = None
     tipo: TipoCobranca
     descricao: str
     competencia_inicio: date | None
     competencia_fim: date | None
     valor_centavos: int
+    #: Só para admin; None para os demais perfis.
+    custo_extra_centavos: int | None = None
+    #: valor - custo extra. Só para admin; None para os demais perfis.
+    valor_liquido_centavos: int | None = None
     vencimento: date
     status: StatusCobranca
     pago_em: datetime | None
@@ -50,12 +59,22 @@ class TotaisRead(BaseModel):
     """Os três cards do topo, como no print."""
 
     recebido_centavos: int
+    #: Recebido menos os custos extras das cobranças pagas.
+    recebido_liquido_centavos: int
     pendente_centavos: int
     vencido_centavos: int
 
 
 class MarcarPago(BaseModel):
-    forma_pagamento: FormaPagamento = FormaPagamento.OUTRO
+    #: Obrigatória: sem ela a baixa caía em "outro" calada e o gráfico de
+    #: formas de pagamento mentia. Quem não sabe escolhe "outro" de propósito.
+    forma_pagamento: FormaPagamento
+
+
+class CustoExtra(BaseModel):
+    """Custos extras da cobrança, em centavos. Zero apaga."""
+
+    custo_extra_centavos: int = Field(ge=0)
 
 
 class CancelarCobranca(BaseModel):

@@ -92,6 +92,11 @@ pagamento:  pendente → pago | cancelado
 
 "Aguardando", nos prints, é confirmação de **presença**.
 
+Presente e falta **podem ser corrigidos** (marcou errado, desmarca), e toda
+mudança vai para `alteracoes_presenca` com quem e quando — presença tem
+consequência financeira. Falta já reposta não pode ser corrigida enquanto a
+reposição existir: a recepção cancela a reposição antes.
+
 ### Nada de regra de negócio hardcoded
 
 Dias e janela de funcionamento, prazo de cancelamento e capacidade padrão são

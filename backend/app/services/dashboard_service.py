@@ -172,7 +172,7 @@ def _proximos_de(
         ProximoAgendamento(
             booking_id=reserva.id,
             hora=f"{sessao.inicia_em.astimezone(FUSO):%H:%M}",
-            paciente_nome=paciente.nome_completo,
+            paciente_nome=paciente.nome_exibicao,
             servico_nome=servico.nome,
             instrutor_nome=instrutor.nome,
             status=reserva.status,
@@ -253,6 +253,10 @@ class ServicoNoPeriodo:
                    presente ou falta. A mesma regra da `TaxaDeOcupacao`, pelo
                    mesmo motivo: a falta ocupou o lugar, a cancelada devolveu.
 
+      realizadas   reservas com presença registrada (`presente`): a aula que
+                   de fato aconteceu para alguém. "Mais marcadas" é demanda;
+                   "mais realizadas" é o que foi entregue.
+
       ocupacao_percentual  round(100 * reservas ÷ capacidade); 0 sem sessão.
 
     ── QUEM ENTRA NA LISTA ──────────────────────────────────────────────────
@@ -270,6 +274,7 @@ class ServicoNoPeriodo:
     sessoes: int
     capacidade: int
     reservas: int
+    realizadas: int = 0
 
     @property
     def ocupacao_percentual(self) -> int:
@@ -279,7 +284,7 @@ class ServicoNoPeriodo:
 def servicos_no_intervalo(db: DbSession, inicio: date, fim: date) -> list[ServicoNoPeriodo]:
     """Movimento por serviço em `[inicio, fim]`, ordenado por nome.
 
-    Três consultas AGRUPADAS por serviço, qualquer que seja o número de
+    Quatro consultas AGRUPADAS por serviço, qualquer que seja o número de
     serviços — nada de uma consulta por serviço (N+1). É o agregador único
     da tela de Atividades e da análise do período.
     """
@@ -307,6 +312,16 @@ def servicos_no_intervalo(db: DbSession, inicio: date, fim: date) -> list[Servic
             .group_by(Session.service_id)
         ).all()
     }
+    realizadas: dict[int, int] = {
+        service_id: int(quantidade)
+        for service_id, quantidade in db.execute(
+            select(Session.service_id, func.count())
+            .select_from(Booking)
+            .join(Session, Session.id == Booking.session_id)
+            .where(*no_intervalo, Booking.status == StatusReserva.PRESENTE)
+            .group_by(Session.service_id)
+        ).all()
+    }
     servicos = db.execute(
         select(Service)
         .where(or_(Service.ativo.is_(True), Service.id.in_(list(sessoes))))
@@ -322,6 +337,7 @@ def servicos_no_intervalo(db: DbSession, inicio: date, fim: date) -> list[Servic
             sessoes=sessoes.get(servico.id, (0, 0))[0],
             capacidade=sessoes.get(servico.id, (0, 0))[1],
             reservas=reservas.get(servico.id, 0),
+            realizadas=realizadas.get(servico.id, 0),
         )
         for servico in servicos
     ]
@@ -497,8 +513,8 @@ def _pagamentos_do_periodo(db: DbSession, periodo: Periodo) -> list[_Pagamento]:
 class BaldeDeReceita:
     """Quanto entrou em `[inicio, fim]`, aberto por tipo de cobrança.
 
-    `por_tipo` tem SEMPRE as três chaves (mensalidade, pacote, avulsa), zero
-    quando não houver — a tela empilha as três sem precisar adivinhar.
+    `por_tipo` tem SEMPRE todas as chaves de TipoCobranca, zero
+    quando não houver — a tela empilha todas sem precisar adivinhar.
     `em_andamento` marca o balde que contém hoje: ele ainda vai crescer, e
     compará-lo com um mês fechado sem esse aviso sugere queda que não houve.
     """

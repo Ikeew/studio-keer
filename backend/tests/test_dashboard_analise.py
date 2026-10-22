@@ -245,12 +245,14 @@ class TestSerieDeReceita:
             TipoCobranca.MENSALIDADE: 30_000,
             TipoCobranca.PACOTE: 9_000,
             TipoCobranca.AVULSA: 1_000,
+            TipoCobranca.PRODUTO: 0,
         }
-        # As três chaves sempre presentes, mesmo zeradas.
+        # Todas as chaves sempre presentes, mesmo zeradas.
         assert serie[1].por_tipo == {
             TipoCobranca.MENSALIDADE: 20_000,
             TipoCobranca.PACOTE: 0,
             TipoCobranca.AVULSA: 0,
+            TipoCobranca.PRODUTO: 0,
         }
         assert [b.em_andamento for b in serie] == [False, False, True]
 
@@ -300,6 +302,23 @@ class TestSerieDeReceita:
 
 
 class TestServicosNoPeriodo:
+    def test_realizadas_conta_so_presenca(
+        self, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """Marcadas é demanda; realizadas é a aula que aconteceu."""
+        servico = criar_servico(db, nome="Pilates Realizado")
+        s1 = criar_sessao(db, instrutor, servico=servico, dia=date(2026, 9, 14), hora=8)
+        veio = _reservar(db, s1, recepcao, "Veio")
+        faltou = _reservar(db, s1, recepcao, "Faltou")
+        _reservar(db, s1, recepcao, "Sem registro")
+        booking_service.registrar_presenca(db, veio.id)
+        booking_service.registrar_falta(db, faltou.id)
+
+        por_nome = {s.nome: s for s in _analise(db).servicos}
+
+        assert por_nome["Pilates Realizado"].reservas == 3
+        assert por_nome["Pilates Realizado"].realizadas == 1
+
     def test_ranking_e_quem_entra(self, db: Session, instrutor: User, recepcao: User) -> None:
         alfa = criar_servico(db, nome="Alfa Pilates")
         beta = criar_servico(db, nome="Beta Fisio")
@@ -606,11 +625,9 @@ _CHAVES = {
 
 
 class TestApiDaAnalise:
-    def test_recepcao_recebe_o_contrato(
-        self, client: TestClient, db: Session, recepcao: User
-    ) -> None:
+    def test_admin_recebe_o_contrato(self, client: TestClient, db: Session, admin: User) -> None:
         criar_configuracao(db)
-        t = login(client, recepcao.email)
+        t = login(client, admin.email)
 
         r = client.get("/api/v1/dashboard/analise", headers=auth(t))
 
@@ -623,7 +640,7 @@ class TestApiDaAnalise:
         assert set(corpo["receita"]) == {"recebido_centavos", "pagamentos", "serie"}
         balde = corpo["receita"]["serie"][-1]
         assert set(balde) == {"inicio", "fim", "recebido_centavos", "por_tipo", "em_andamento"}
-        assert set(balde["por_tipo"]) == {"mensalidade", "pacote", "avulsa"}
+        assert set(balde["por_tipo"]) == {"mensalidade", "pacote", "avulsa", "produto"}
         assert balde["em_andamento"] is True
         assert set(corpo["ocupacao"]) == {
             "percentual",
@@ -652,12 +669,12 @@ class TestApiDaAnalise:
             "remarcacao",
         ]
 
-    def test_datas_e_formas_no_json(self, client: TestClient, db: Session, recepcao: User) -> None:
+    def test_datas_e_formas_no_json(self, client: TestClient, db: Session, admin: User) -> None:
         p = criar_paciente(db, "Json")
         # Agora mesmo: a rota usa o relógio real, e o mês corrente sempre
         # está no período.
         _cobranca(db, p, valor=1_500, pago_em=datetime.now(FUSO), forma=None)
-        t = login(client, recepcao.email)
+        t = login(client, admin.email)
 
         corpo = client.get("/api/v1/dashboard/analise", params={"meses": 1}, headers=auth(t)).json()
 
@@ -665,6 +682,24 @@ class TestApiDaAnalise:
         date.fromisoformat(corpo["periodo"]["inicio"])  # "YYYY-MM-DD"
         assert corpo["formas_pagamento"] == [
             {"forma": None, "pagamentos": 1, "valor_centavos": 1_500}
+        ]
+
+    def test_recepcao_nao_recebe_valores(
+        self, client: TestClient, db: Session, recepcao: User
+    ) -> None:
+        """Valores são só da proprietária — escondidos na API, não só na tela."""
+        criar_configuracao(db)
+        p = criar_paciente(db, "Sem Valores")
+        _cobranca(db, p, valor=1_500, pago_em=datetime.now(FUSO), forma=None)
+        t = login(client, recepcao.email)
+
+        corpo = client.get("/api/v1/dashboard/analise", headers=auth(t)).json()
+
+        assert set(corpo) == _CHAVES
+        assert corpo["receita"] is None
+        # A contagem fica: é a própria recepção que registra cada baixa.
+        assert corpo["formas_pagamento"] == [
+            {"forma": None, "pagamentos": 1, "valor_centavos": None}
         ]
 
     def test_admin_ve(self, client: TestClient, db: Session, admin: User) -> None:

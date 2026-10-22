@@ -276,6 +276,24 @@ class TestRbac:
         assert pago.status_code == 200 and pago.json()["status"] == "pago"
         assert desfeito.status_code == 200 and desfeito.json()["status"] == "pendente"
 
+    def test_baixa_sem_forma_de_pagamento_e_recusada(
+        self, client: TestClient, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """Sem forma, a baixa caía em "outro" calada e o gráfico mentia."""
+        criar_configuracao(db)
+        _matricula(db, instrutor, "Sem Forma", date.today() - timedelta(days=30))
+        charge_service.gerar_mensalidades(db)
+        cobranca = db.execute(select(Charge)).scalars().first()
+        assert cobranca is not None
+        db.commit()
+        t = login(client, recepcao.email)
+
+        r = client.post(f"/api/v1/charges/{cobranca.id}/pagar", json={}, headers=auth(t))
+
+        assert r.status_code == 422
+        db.refresh(cobranca)
+        assert cobranca.status is StatusCobranca.PENDENTE
+
     def test_recepcao_nao_cancela_cobranca(
         self, client: TestClient, db: Session, instrutor: User, recepcao: User
     ) -> None:
@@ -323,6 +341,35 @@ class TestRbac:
         assert client.get("/api/v1/charges", headers=auth(t)).status_code == 403
         assert client.get("/api/v1/charges/totais", headers=auth(t)).status_code == 403
         assert client.get("/api/v1/packages", headers=auth(t)).status_code == 403
+
+    def test_totais_so_para_admin(
+        self, client: TestClient, db: Session, recepcao: User, admin: User
+    ) -> None:
+        """Os três cards são da proprietária. A recepção registra pagamentos,
+        mas não vê o caixa — bloqueado na API, não só escondido na tela."""
+        criar_configuracao(db)
+
+        r_recepcao = client.get(
+            "/api/v1/charges/totais", headers=auth(login(client, recepcao.email))
+        )
+        r_admin = client.get("/api/v1/charges/totais", headers=auth(login(client, admin.email)))
+
+        assert r_recepcao.status_code == 403
+        assert r_admin.status_code == 200
+        assert set(r_admin.json()) == {
+            "recebido_centavos",
+            "recebido_liquido_centavos",
+            "pendente_centavos",
+            "vencido_centavos",
+        }
+
+    def test_recepcao_continua_registrando_pagamento(
+        self, client: TestClient, db: Session, recepcao: User
+    ) -> None:
+        criar_configuracao(db)
+        t = login(client, recepcao.email)
+
+        assert client.get("/api/v1/charges", headers=auth(t)).status_code == 200
 
 
 class TestFluxoDePagamento:
@@ -431,3 +478,142 @@ class TestDinheiroEmCentavos:
         cobranca = db.execute(select(Charge)).scalars().one()
         assert isinstance(cobranca.valor_centavos, int)
         assert cobranca.valor_centavos == 12_345
+
+
+class TestCpfNoFinanceiro:
+    """CPF para a nota fiscal. Só a proprietária vê — a nota é emitida por ela."""
+
+    def _cobranca_com_cpf(self, db: Session, cpf: str | None) -> Charge:
+        paciente = criar_paciente(db, "Paciente da Nota")
+        paciente.cpf = cpf
+        cobranca = Charge(
+            patient_id=paciente.id,
+            tipo=TipoCobranca.AVULSA,
+            descricao="Avaliação",
+            valor_centavos=10_000,
+            vencimento=date.today(),
+        )
+        db.add(cobranca)
+        db.flush()
+        return cobranca
+
+    def test_admin_ve_cpf_formatado(self, client: TestClient, db: Session, admin: User) -> None:
+        cobranca = self._cobranca_com_cpf(db, "52998224725")
+        t = login(client, admin.email)
+
+        lista = client.get("/api/v1/charges", headers=auth(t)).json()["itens"]
+        unica = client.get(f"/api/v1/charges/{cobranca.id}", headers=auth(t)).json()
+
+        assert [c["paciente_cpf"] for c in lista] == ["529.982.247-25"]
+        assert unica["paciente_cpf"] == "529.982.247-25"
+
+    def test_recepcao_nao_recebe_cpf(self, client: TestClient, db: Session, recepcao: User) -> None:
+        cobranca = self._cobranca_com_cpf(db, "52998224725")
+        t = login(client, recepcao.email)
+
+        lista = client.get("/api/v1/charges", headers=auth(t))
+        unica = client.get(f"/api/v1/charges/{cobranca.id}", headers=auth(t))
+
+        assert "52998224725" not in lista.text and "529.982.247-25" not in lista.text
+        assert unica.json()["paciente_cpf"] is None
+
+    def test_paciente_sem_cpf(self, client: TestClient, db: Session, admin: User) -> None:
+        self._cobranca_com_cpf(db, None)
+        t = login(client, admin.email)
+
+        itens = client.get("/api/v1/charges", headers=auth(t)).json()["itens"]
+
+        assert itens[0]["paciente_cpf"] is None
+
+
+class TestValorLiquido:
+    """Valor líquido = valor - custos extras, por cobrança, em reais fixos.
+
+    Só a proprietária lança o custo e vê o líquido.
+    """
+
+    def _cobranca(self, db: Session, valor: int = 20_000) -> Charge:
+        cobranca = Charge(
+            patient_id=criar_paciente(db, "Paciente Liquido").id,
+            tipo=TipoCobranca.AVULSA,
+            descricao="Avaliação",
+            valor_centavos=valor,
+            vencimento=date.today(),
+        )
+        db.add(cobranca)
+        db.flush()
+        return cobranca
+
+    def test_admin_lanca_custo_e_ve_liquido(
+        self, client: TestClient, db: Session, admin: User
+    ) -> None:
+        cobranca = self._cobranca(db)
+        t = login(client, admin.email)
+
+        r = client.put(
+            f"/api/v1/charges/{cobranca.id}/custo-extra",
+            json={"custo_extra_centavos": 1_250},
+            headers=auth(t),
+        )
+        item = client.get("/api/v1/charges", headers=auth(t)).json()["itens"][0]
+
+        assert r.status_code == 200
+        assert item["custo_extra_centavos"] == 1_250
+        assert item["valor_liquido_centavos"] == 18_750
+        assert item["valor_centavos"] == 20_000, "o valor cobrado não muda"
+
+    def test_sem_custo_o_liquido_e_o_valor(
+        self, client: TestClient, db: Session, admin: User
+    ) -> None:
+        self._cobranca(db)
+        t = login(client, admin.email)
+
+        item = client.get("/api/v1/charges", headers=auth(t)).json()["itens"][0]
+
+        assert item["valor_liquido_centavos"] == 20_000
+
+    def test_custo_maior_que_o_valor_e_recusado(
+        self, client: TestClient, db: Session, admin: User
+    ) -> None:
+        cobranca = self._cobranca(db, valor=1_000)
+        t = login(client, admin.email)
+
+        r = client.put(
+            f"/api/v1/charges/{cobranca.id}/custo-extra",
+            json={"custo_extra_centavos": 1_001},
+            headers=auth(t),
+        )
+
+        assert r.status_code == 422
+
+    def test_recepcao_nao_ve_nem_lanca(
+        self, client: TestClient, db: Session, recepcao: User
+    ) -> None:
+        cobranca = self._cobranca(db)
+        cobranca.custo_extra_centavos = 500
+        db.flush()
+        t = login(client, recepcao.email)
+
+        item = client.get("/api/v1/charges", headers=auth(t)).json()["itens"][0]
+        r = client.put(
+            f"/api/v1/charges/{cobranca.id}/custo-extra",
+            json={"custo_extra_centavos": 0},
+            headers=auth(t),
+        )
+
+        assert item["custo_extra_centavos"] is None
+        assert item["valor_liquido_centavos"] is None
+        assert r.status_code == 403
+
+    def test_total_recebido_liquido(self, db: Session, recepcao: User) -> None:
+        paga = self._cobranca(db, valor=10_000)
+        charge_service.marcar_pago(db, paga.id, registrado_por_id=recepcao.id)
+        charge_service.definir_custo_extra(db, paga.id, custo_extra_centavos=300)
+        # Pendente não entra no recebido, nem o custo dela.
+        pendente = self._cobranca(db, valor=5_000)
+        charge_service.definir_custo_extra(db, pendente.id, custo_extra_centavos=100)
+
+        t = charge_service.totais(db)
+
+        assert t.recebido_centavos == 10_000
+        assert t.recebido_liquido_centavos == 9_700

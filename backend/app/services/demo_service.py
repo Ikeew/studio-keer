@@ -30,7 +30,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 from sqlalchemy.sql import Delete
 
-from app.models.booking import Booking, OrigemReserva, StatusReserva
+from app.models.booking import AlteracaoPresenca, Booking, OrigemReserva, StatusReserva
 from app.models.charge import Charge, FormaPagamento, StatusCobranca
 from app.models.enrollment import Blackout, Enrollment, EnrollmentHorario
 from app.models.package import Package
@@ -214,6 +214,13 @@ def limpar(db: DbSession) -> dict[str, int]:
 
     # Ordem importa: filhos antes dos pais.
     contagem["cobrancas"] = apagar(delete(Charge).where(Charge.patient_id.in_(ids)))
+    # Histórico de presença aponta para a reserva: sai antes dela. Existe
+    # quando alguém marca presença num paciente demo durante a apresentação.
+    apagar(
+        delete(AlteracaoPresenca).where(
+            AlteracaoPresenca.booking_id.in_(select(Booking.id).where(Booking.patient_id.in_(ids)))
+        )
+    )
     contagem["reservas"] = apagar(delete(Booking).where(Booking.patient_id.in_(ids)))
     contagem["pacotes"] = apagar(delete(Package).where(Package.patient_id.in_(ids)))
     matriculas = list(

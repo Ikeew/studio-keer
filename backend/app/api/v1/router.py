@@ -8,6 +8,7 @@ from app.api.v1 import (
     health,
     matriculas,
     patients,
+    produtos,
     services,
     users,
 )
@@ -21,6 +22,7 @@ api_router.include_router(services.router)
 api_router.include_router(agenda.router)
 api_router.include_router(matriculas.router)
 api_router.include_router(financeiro.router)
+api_router.include_router(produtos.router)
 api_router.include_router(dashboard.router)
 
 # Fases seguintes registram seus routers aqui:

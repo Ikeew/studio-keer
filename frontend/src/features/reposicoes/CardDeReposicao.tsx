@@ -46,7 +46,8 @@ export function CardDeReposicao({ falta }: Props) {
         <div>
           <h3 className="font-heading text-lg font-semibold">{falta.paciente_nome}</h3>
           <p className="mt-1 text-[15px] text-muted">
-            Faltou em {formatarData(falta.faltou_em.slice(0, 10))} · {falta.servico_nome}
+            {falta.tipo === 'aviso' ? 'Avisou que não vinha em' : 'Faltou em'}{' '}
+            {formatarData(falta.faltou_em.slice(0, 10))} · {falta.servico_nome}
           </p>
           {falta.motivo && (
             <p className="mt-1 text-sm text-muted">Motivo: {falta.motivo}</p>

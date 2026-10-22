@@ -5,16 +5,18 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
+from app.core.cpf import formatar_cpf
 from app.core.deps import CurrentUser, require_papel
 from app.db.session import get_db
 from app.models.charge import Charge
 from app.models.package import Package
 from app.models.patient import Patient
 from app.models.service import Service
-from app.models.user import Papel
+from app.models.user import Papel, User
 from app.schemas.financeiro import (
     CancelarCobranca,
     ChargeRead,
+    CustoExtra,
     MarcarPago,
     PackageRead,
     PaginaDeCobrancas,
@@ -24,6 +26,7 @@ from app.schemas.financeiro import (
     VendaDePacote,
 )
 from app.services import charge_service, package_service
+from app.services.produto_service import COMPRADOR_PADRAO
 
 router = APIRouter(tags=["financeiro"])
 
@@ -35,11 +38,23 @@ OPERADORES = Depends(require_papel(Papel.ADMIN, Papel.RECEPCAO))
 SO_ADMIN = Depends(require_papel(Papel.ADMIN))
 
 
-def _para_leitura(cobranca: Charge, paciente: Patient) -> ChargeRead:
+def _para_leitura(cobranca: Charge, paciente: Patient | None, *, admin: bool = False) -> ChargeRead:
+    """`admin` liga o que só a proprietária vê: CPF (a nota é emitida por
+    ela), custo extra e valor líquido.
+
+    Sem paciente (venda de produto no balcão), o nome é o do comprador.
+    """
     return ChargeRead(
         id=cobranca.id,
-        patient_id=paciente.id,
-        paciente_nome=paciente.nome_completo,
+        patient_id=paciente.id if paciente else None,
+        paciente_nome=(
+            paciente.nome_completo if paciente else (cobranca.comprador_nome or COMPRADOR_PADRAO)
+        ),
+        paciente_cpf=(formatar_cpf(paciente.cpf) if admin and paciente and paciente.cpf else None),
+        custo_extra_centavos=cobranca.custo_extra_centavos if admin else None,
+        valor_liquido_centavos=(
+            cobranca.valor_centavos - cobranca.custo_extra_centavos if admin else None
+        ),
         tipo=cobranca.tipo,
         descricao=cobranca.descricao,
         competencia_inicio=cobranca.competencia_inicio,
@@ -52,15 +67,19 @@ def _para_leitura(cobranca: Charge, paciente: Patient) -> ChargeRead:
     )
 
 
-def _recarregar(db: DbSession, cobranca: Charge) -> ChargeRead:
-    paciente = db.get(Patient, cobranca.patient_id)
-    assert paciente is not None
-    return _para_leitura(cobranca, paciente)
+def cobranca_para_leitura(db: DbSession, cobranca: Charge, *, admin: bool = False) -> ChargeRead:
+    paciente = db.get(Patient, cobranca.patient_id) if cobranca.patient_id is not None else None
+    return _para_leitura(cobranca, paciente, admin=admin)
+
+
+def _e_admin(usuario: User) -> bool:
+    return usuario.papel is Papel.ADMIN
 
 
 @router.get("/charges", response_model=PaginaDeCobrancas, dependencies=[OPERADORES])
 def listar(
     db: Db,
+    usuario: CurrentUser,
     filtro: Annotated[
         str | None, Query(description="pendentes | pagos | vencidos | cancelados")
     ] = None,
@@ -74,31 +93,33 @@ def listar(
         db, filtro=filtro, busca=busca, pagina=pagina, tamanho=tamanho
     )
     return PaginaDeCobrancas(
-        itens=[_para_leitura(c, p) for c, p in linhas],
+        itens=[_para_leitura(c, p, admin=_e_admin(usuario)) for c, p in linhas],
         total=total,
         pagina=pagina,
         tamanho=tamanho,
     )
 
 
-@router.get("/charges/totais", response_model=TotaisRead, dependencies=[OPERADORES])
+@router.get("/charges/totais", response_model=TotaisRead, dependencies=[SO_ADMIN])
 def totais(db: Db) -> TotaisRead:
+    """Total recebido, a receber e vencido. Só a proprietária vê."""
     t = charge_service.totais(db)
     return TotaisRead(
         recebido_centavos=t.recebido_centavos,
+        recebido_liquido_centavos=t.recebido_liquido_centavos,
         pendente_centavos=t.pendente_centavos,
         vencido_centavos=t.vencido_centavos,
     )
 
 
 @router.get("/charges/{charge_id}", response_model=ChargeRead, dependencies=[OPERADORES])
-def obter(charge_id: int, db: Db) -> ChargeRead:
+def obter(charge_id: int, db: Db, usuario: CurrentUser) -> ChargeRead:
     """Consistência: toda entidade tem GET por id.
 
     Sem esta rota, pedir uma cobrança pelo id devolvia 405 — um erro que não
     diz nada a quem está integrando ou depurando.
     """
-    return _recarregar(db, charge_service.buscar(db, charge_id))
+    return cobranca_para_leitura(db, charge_service.buscar(db, charge_id), admin=_e_admin(usuario))
 
 
 @router.post(
@@ -124,7 +145,7 @@ def marcar_pago(charge_id: int, dados: MarcarPago, db: Db, usuario: CurrentUser)
         db, charge_id, registrado_por_id=usuario.id, forma=dados.forma_pagamento
     )
     db.commit()
-    return _recarregar(db, cobranca)
+    return cobranca_para_leitura(db, cobranca)
 
 
 @router.post("/charges/{charge_id}/desfazer", response_model=ChargeRead, dependencies=[OPERADORES])
@@ -136,15 +157,30 @@ def desfazer_pagamento(charge_id: int, db: Db, usuario: CurrentUser) -> ChargeRe
     """
     cobranca = charge_service.desfazer_pagamento(db, charge_id, registrado_por_id=usuario.id)
     db.commit()
-    return _recarregar(db, cobranca)
+    return cobranca_para_leitura(db, cobranca)
+
+
+@router.put("/charges/{charge_id}/custo-extra", response_model=ChargeRead, dependencies=[SO_ADMIN])
+def definir_custo_extra(charge_id: int, dados: CustoExtra, db: Db) -> ChargeRead:
+    """Custos extras da cobrança (valor fixo em reais). Só a proprietária."""
+    cobranca = charge_service.definir_custo_extra(
+        db, charge_id, custo_extra_centavos=dados.custo_extra_centavos
+    )
+    db.commit()
+    return cobranca_para_leitura(db, cobranca, admin=True)
 
 
 @router.delete("/charges/{charge_id}", response_model=ChargeRead, dependencies=[SO_ADMIN])
-def cancelar(charge_id: int, dados: CancelarCobranca, db: Db) -> ChargeRead:
-    """Cancela a cobrança — ela deixa de ser devida. Só a proprietária."""
-    cobranca = charge_service.cancelar(db, charge_id, motivo=dados.motivo)
+def cancelar(charge_id: int, dados: CancelarCobranca, db: Db, usuario: CurrentUser) -> ChargeRead:
+    """Cancela a cobrança — ela deixa de ser devida. Só a proprietária.
+
+    Se for venda de produto, as peças voltam ao estoque.
+    """
+    cobranca = charge_service.cancelar(
+        db, charge_id, motivo=dados.motivo, cancelado_por_id=usuario.id
+    )
     db.commit()
-    return _recarregar(db, cobranca)
+    return cobranca_para_leitura(db, cobranca)
 
 
 # ── PACOTES ──────────────────────────────────────────────────────────────────

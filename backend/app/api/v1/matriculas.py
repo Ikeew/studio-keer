@@ -239,6 +239,7 @@ def reposicoes_pendentes(db: Db, incluir_vencidas: bool = False) -> list[FaltaPe
                 motivo=p.motivo,
                 repor_ate=p.repor_ate,
                 dias_restantes=p.dias_restantes,
+                tipo=p.tipo,
                 procurar_de=de,
                 procurar_ate=ate,
             )

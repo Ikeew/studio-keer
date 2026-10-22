@@ -20,6 +20,8 @@ class TipoCobranca(StrEnum):
     MENSALIDADE = "mensalidade"
     PACOTE = "pacote"
     AVULSA = "avulsa"
+    #: Venda de produto no balcão (meia, camiseta). Nasce paga.
+    PRODUTO = "produto"
 
 
 class StatusCobranca(StrEnum):
@@ -53,7 +55,18 @@ class Charge(Base, TimestampMixin):
     __tablename__ = "charges"
     __table_args__ = (
         CheckConstraint("valor_centavos >= 0", name="valor_nao_negativo"),
+        # O custo extra sai do valor da própria cobrança: não pode passar dele.
+        CheckConstraint(
+            "custo_extra_centavos >= 0 AND custo_extra_centavos <= valor_centavos",
+            name="custo_extra_dentro_do_valor",
+        ),
         CheckConstraint("status <> 'pago' OR pago_em IS NOT NULL", name="pago_tem_data"),
+        # Só venda de produto pode ser para quem não é paciente — e então
+        # precisa de um nome para aparecer no financeiro.
+        CheckConstraint(
+            "patient_id IS NOT NULL OR (tipo = 'produto' AND comprador_nome IS NOT NULL)",
+            name="tem_pagador",
+        ),
         # Uma mensalidade por ciclo. É o que torna a geração IDEMPOTENTE no
         # banco: rodar duas vezes não cobra o paciente duas vezes.
         Index(
@@ -75,7 +88,10 @@ class Charge(Base, TimestampMixin):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False)
+    #: Nulo só em venda de produto para quem não é paciente.
+    patient_id: Mapped[int | None] = mapped_column(ForeignKey("patients.id"), nullable=True)
+    #: Quem comprou, quando não é paciente ("Studio Keer" se ninguém informar).
+    comprador_nome: Mapped[str | None] = mapped_column(String(160), nullable=True)
 
     # Origem da cobrança — no máximo uma está preenchida.
     enrollment_id: Mapped[int | None] = mapped_column(ForeignKey("enrollments.id"), nullable=True)
@@ -92,6 +108,12 @@ class Charge(Base, TimestampMixin):
 
     # Dinheiro sempre em centavos, inteiro.
     valor_centavos: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Custos extras desta cobrança (ex.: taxa da maquininha), valor fixo em
+    # reais lançado pela proprietária. Valor líquido = valor - custo extra,
+    # calculado na leitura e nunca gravado. Só o admin vê e edita.
+    custo_extra_centavos: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
     vencimento: Mapped[date] = mapped_column(Date, nullable=False)
 
     status: Mapped[StatusCobranca] = mapped_column(

@@ -33,8 +33,21 @@ def _validar_cpf(v: str | None) -> str | None:
 CPFOpcional = Annotated[str | None, AfterValidator(_validar_cpf)]
 
 
+def _limpar_nome_social(v: str | None) -> str | None:
+    """Espaços colapsados; em branco é "não tem", não um nome vazio."""
+    if v is None:
+        return None
+    limpo = " ".join(v.split())
+    return limpo or None
+
+
+NomeSocial = Annotated[str | None, AfterValidator(_limpar_nome_social)]
+
+
 class PatientBase(BaseModel):
     nome_completo: str = Field(min_length=3, max_length=160)
+    #: Como a pessoa gosta de ser chamada. Opcional.
+    nome_social: NomeSocial = Field(default=None, max_length=160)
     cpf: CPFOpcional = None
     data_nascimento: date | None = None
     sexo: Sexo = Sexo.NAO_INFORMADO
@@ -73,6 +86,8 @@ class PatientUpdate(BaseModel):
     """
 
     nome_completo: str | None = Field(default=None, min_length=3, max_length=160)
+    #: Enviar null (ou em branco) apaga o nome social.
+    nome_social: NomeSocial = Field(default=None, max_length=160)
     cpf: CPFOpcional = None
     data_nascimento: date | None = None
     sexo: Sexo | None = None
@@ -91,6 +106,7 @@ class PatientRead(BaseModel):
 
     id: int
     nome_completo: str
+    nome_social: str | None
     cpf: str | None
     data_nascimento: date | None
     sexo: Sexo
@@ -104,6 +120,12 @@ class PatientRead(BaseModel):
     consentimento_lgpd: bool
     consentimento_em: date | None
     ativo: bool
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def nome_exibicao(self) -> str:
+        """O nome das telas do dia a dia: o social, se houver."""
+        return self.nome_social or self.nome_completo
 
     @computed_field  # type: ignore[prop-decorator]
     @property

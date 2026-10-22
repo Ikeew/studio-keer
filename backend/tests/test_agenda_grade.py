@@ -363,3 +363,29 @@ class TestFusoHorario:
 
         assert r.status_code == 400
         assert "não atende" in r.json()["detail"]
+
+
+class TestModalidadesDoFiltro:
+    def test_os_tres_perfis_leem_sem_preco(
+        self,
+        client: TestClient,
+        db: Session,
+        admin: User,
+        recepcao: User,
+        instrutor: User,
+    ) -> None:
+        """O instrutor também filtra a agenda, mas não vê o catálogo com preço."""
+        criar_servico(db, nome="Pilates Filtro")
+        inativo = criar_servico(db, nome="Antigo Filtro")
+        inativo.ativo = False
+        db.flush()
+
+        for usuario in (admin, recepcao, instrutor):
+            t = login(client, usuario.email)
+            r = client.get("/api/v1/agenda/modalidades", headers=auth(t))
+
+            assert r.status_code == 200, usuario.papel
+            nomes = [m["nome"] for m in r.json()]
+            assert "Pilates Filtro" in nomes
+            assert "Antigo Filtro" not in nomes
+            assert set(r.json()[0]) == {"id", "nome", "cor"}

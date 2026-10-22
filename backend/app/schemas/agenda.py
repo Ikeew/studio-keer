@@ -38,6 +38,16 @@ class SessionCreate(BaseModel):
         return v
 
 
+class ModalidadeRead(BaseModel):
+    """Opção do filtro da agenda. Só o que a grade precisa — sem preço."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+    cor: str
+
+
 class ReservaNaGrade(BaseModel):
     """Reserva como aparece no card da grade."""
 
@@ -50,6 +60,10 @@ class ReservaNaGrade(BaseModel):
     status: StatusReserva
     origem: OrigemReserva
     justificada: bool
+    #: Quem registrou presença/falta por último, e quando. Dado com
+    #: consequência financeira: a recepção precisa ver quem marcou.
+    presenca_por: str | None = None
+    presenca_em: datetime | None = None
 
 
 class SessaoNaGrade(BaseModel):
@@ -104,6 +118,8 @@ class BookingCreate(BaseModel):
 
 class BookingCancel(BaseModel):
     motivo: str | None = Field(default=None, max_length=500)
+    #: O paciente avisou que não vem — dá direito a repor (premissas.md, P5).
+    com_aviso: bool = False
 
 
 class BookingFalta(BaseModel):

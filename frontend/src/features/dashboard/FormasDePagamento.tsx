@@ -47,7 +47,11 @@ export function FormasDePagamento({ formas, className }: Props) {
             largura={total > 0 ? (100 * f.pagamentos) / total : 0}
             corClasse={f.pagamentos === topo ? 'bg-brand' : 'bg-grafico-apoio'}
             valor={percentual(fatia(f.pagamentos, total))}
-            detalhe={`${f.pagamentos} · ${reais(f.valor_centavos)}`}
+            detalhe={
+              f.valor_centavos === null
+                ? String(f.pagamentos)
+                : `${f.pagamentos} · ${reais(f.valor_centavos)}`
+            }
           />
         ))}
       </ul>

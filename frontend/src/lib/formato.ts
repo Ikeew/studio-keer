@@ -30,6 +30,17 @@ export function data(iso: string | null): string {
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : iso
 }
 
+/** "22/10 às 14:05", no fuso do studio. Para carimbo de quem fez o quê. */
+export function dataHora(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Sao_Paulo',
+  }).replace(', ', ' às ')
+}
+
 /** Iniciais para o avatar do card, como nos prints. */
 export function inicial(nome: string): string {
   return nome.trim().charAt(0).toUpperCase() || '?'

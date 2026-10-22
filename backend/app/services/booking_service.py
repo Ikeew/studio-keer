@@ -4,6 +4,7 @@ A dor número um da cliente é overbooking. Toda decisão deste módulo se
 subordina a isso — inclusive as que tornam o código mais chato.
 """
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
@@ -11,8 +12,9 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DbSession
 
-from app.models.booking import Booking, OrigemReserva, StatusReserva
+from app.models.booking import AlteracaoPresenca, Booking, OrigemReserva, StatusReserva
 from app.models.session import Session, StatusSessao
+from app.models.user import User
 
 SEM_VAGA = "Este horário já está com a turma completa."
 
@@ -162,7 +164,9 @@ def buscar(db: DbSession, booking_id: int) -> Booking:
     return reserva
 
 
-def cancelar(db: DbSession, booking_id: int, *, motivo: str | None = None) -> Booking:
+def cancelar(
+    db: DbSession, booking_id: int, *, motivo: str | None = None, com_aviso: bool = False
+) -> Booking:
     """Cancela e LIBERA A VAGA.
 
     Não há prazo de antecedência, e cancelar nunca vira falta sozinho — a
@@ -171,6 +175,9 @@ def cancelar(db: DbSession, booking_id: int, *, motivo: str | None = None) -> Bo
 
     O valor do aviso antecipado é operacional: a posição sai do índice parcial
     e volta ao pool na mesma transação, podendo receber uma reposição.
+
+    `com_aviso` é o paciente que avisou que não vem: dá direito a repor
+    (docs/premissas.md, P5). Sem ele, é só uma reserva desfeita.
     """
     reserva = buscar(db, booking_id)
 
@@ -185,6 +192,7 @@ def cancelar(db: DbSession, booking_id: int, *, motivo: str | None = None) -> Bo
     reserva.status = StatusReserva.CANCELADA
     reserva.cancelado_em = datetime.now(UTC)
     reserva.motivo_cancelamento = motivo
+    reserva.cancelado_com_aviso = com_aviso
     db.flush()
     return reserva
 
@@ -202,16 +210,94 @@ def confirmar(db: DbSession, booking_id: int) -> Booking:
     return reserva
 
 
-def registrar_presenca(db: DbSession, booking_id: int) -> Booking:
+#: Status que encerram o eixo de presença. Corrigir é sair de um para o outro.
+_REGISTRADOS = (StatusReserva.PRESENTE, StatusReserva.FALTA)
+
+
+def _reposicao_ativa(db: DbSession, booking_id: int) -> Booking | None:
+    return db.execute(
+        select(Booking).where(
+            Booking.substitui_booking_id == booking_id,
+            Booking.origem == OrigemReserva.REPOSICAO,
+            Booking.status != StatusReserva.CANCELADA,
+        )
+    ).scalar_one_or_none()
+
+
+def _garantir_correcao_permitida(
+    db: DbSession, reserva: Booking, *, novo_status: StatusReserva, justificada: bool
+) -> None:
+    """Falta já reposta não pode perder o direito que gerou.
+
+    Corrigir "faltou" para "presente" (ou tirar a justificativa) com a
+    reposição já marcada deixaria uma reposição sem falta que a justifique —
+    uma aula a mais, de graça, ocupando vaga. A recepção cancela a reposição
+    antes, de propósito: é uma decisão, não um efeito colateral.
+    """
+    if reserva.status is not StatusReserva.FALTA:
+        return
+    if novo_status is StatusReserva.FALTA and justificada:
+        return
+    if _reposicao_ativa(db, reserva.id) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=("Esta falta já foi reposta. Cancele a reposição antes de corrigir o registro."),
+        )
+
+
+def _mudar_presenca(
+    db: DbSession,
+    reserva: Booking,
+    *,
+    novo_status: StatusReserva,
+    justificada: bool,
+    motivo: str | None,
+    alterado_por_id: int | None,
+) -> Booking:
+    """Aplica a mudança e grava o histórico, se algo de fato mudou.
+
+    `alterado_por_id` é obrigatório na API. Só fica de fora em chamadas
+    internas (seed, testes), que não são registro de ninguém.
+    """
+    mudou = reserva.status is not novo_status or reserva.justificada is not justificada
+    anterior = reserva.status
+
+    reserva.status = novo_status
+    reserva.justificada = justificada
+    reserva.motivo_justificativa = motivo
+    if mudou and alterado_por_id is not None:
+        db.add(
+            AlteracaoPresenca(
+                booking_id=reserva.id,
+                status_anterior=anterior,
+                status_novo=novo_status,
+                justificada=justificada,
+                alterado_por_id=alterado_por_id,
+            )
+        )
+    db.flush()
+    return reserva
+
+
+def registrar_presenca(
+    db: DbSession, booking_id: int, *, alterado_por_id: int | None = None
+) -> Booking:
+    """Marca presença. Também corrige uma falta registrada por engano."""
     reserva = buscar(db, booking_id)
     if reserva.status is StatusReserva.CANCELADA:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Reserva cancelada não recebe presença.",
         )
-    reserva.status = StatusReserva.PRESENTE
-    db.flush()
-    return reserva
+    _garantir_correcao_permitida(db, reserva, novo_status=StatusReserva.PRESENTE, justificada=False)
+    return _mudar_presenca(
+        db,
+        reserva,
+        novo_status=StatusReserva.PRESENTE,
+        justificada=False,
+        motivo=None,
+        alterado_por_id=alterado_por_id,
+    )
 
 
 def registrar_falta(
@@ -220,6 +306,7 @@ def registrar_falta(
     *,
     justificada: bool = False,
     motivo: str | None = None,
+    alterado_por_id: int | None = None,
 ) -> Booking:
     """Marca falta. Quem julga se é justificada é a RECEPÇÃO.
 
@@ -236,11 +323,77 @@ def registrar_falta(
             status_code=status.HTTP_409_CONFLICT,
             detail="Reserva cancelada não recebe falta — ela já liberou a vaga.",
         )
-    reserva.status = StatusReserva.FALTA
-    reserva.justificada = justificada
-    reserva.motivo_justificativa = motivo
-    db.flush()
-    return reserva
+    _garantir_correcao_permitida(
+        db, reserva, novo_status=StatusReserva.FALTA, justificada=justificada
+    )
+    return _mudar_presenca(
+        db,
+        reserva,
+        novo_status=StatusReserva.FALTA,
+        justificada=justificada,
+        motivo=motivo,
+        alterado_por_id=alterado_por_id,
+    )
+
+
+def limpar_presenca(db: DbSession, booking_id: int, *, alterado_por_id: int) -> Booking:
+    """Desfaz o registro: marcou em quem não devia, volta a "sem registro".
+
+    Volta ao status que a reserva tinha antes do primeiro registro
+    (agendada ou confirmada), lido do histórico.
+    """
+    reserva = buscar(db, booking_id)
+    if reserva.status not in _REGISTRADOS:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Esta reserva não tem presença nem falta registrada.",
+        )
+    anterior = db.execute(
+        select(AlteracaoPresenca.status_anterior)
+        .where(
+            AlteracaoPresenca.booking_id == reserva.id,
+            AlteracaoPresenca.status_anterior.in_(
+                (StatusReserva.AGENDADA, StatusReserva.CONFIRMADA)
+            ),
+        )
+        .order_by(AlteracaoPresenca.alterado_em.desc(), AlteracaoPresenca.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    destino = anterior or StatusReserva.AGENDADA
+
+    _garantir_correcao_permitida(db, reserva, novo_status=destino, justificada=False)
+    return _mudar_presenca(
+        db,
+        reserva,
+        novo_status=destino,
+        justificada=False,
+        motivo=None,
+        alterado_por_id=alterado_por_id,
+    )
+
+
+@dataclass
+class UltimoRegistro:
+    por: str
+    em: datetime
+
+
+def ultimos_registros(db: DbSession, booking_ids: list[int]) -> dict[int, UltimoRegistro]:
+    """Quem registrou a presença de cada reserva por último, numa consulta só."""
+    if not booking_ids:
+        return {}
+    linhas = db.execute(
+        select(AlteracaoPresenca.booking_id, User.nome, AlteracaoPresenca.alterado_em)
+        .join(User, User.id == AlteracaoPresenca.alterado_por_id)
+        .where(AlteracaoPresenca.booking_id.in_(booking_ids))
+        .order_by(
+            AlteracaoPresenca.booking_id,
+            AlteracaoPresenca.alterado_em.desc(),
+            AlteracaoPresenca.id.desc(),
+        )
+        .distinct(AlteracaoPresenca.booking_id)
+    ).all()
+    return {bid: UltimoRegistro(por=nome, em=em) for bid, nome, em in linhas}
 
 
 def remarcar(

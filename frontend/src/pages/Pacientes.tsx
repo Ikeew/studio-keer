@@ -127,7 +127,7 @@ export function Pacientes() {
 
       <Modal
         aberto={vendoMatriculas !== null}
-        titulo={vendoMatriculas ? `Matrículas de ${vendoMatriculas.nome_completo}` : ''}
+        titulo={vendoMatriculas ? `Matrículas de ${vendoMatriculas.nome_exibicao}` : ''}
         onFechar={() => setVendoMatriculas(null)}
       >
         {vendoMatriculas && <PainelDeMatriculas paciente={vendoMatriculas} />}

@@ -8,12 +8,13 @@ uma consulta sobre o que já existe, então não há o que sair de sincronia.
 from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session as DbSession
 from sqlalchemy.orm import aliased
 
-from app.models.booking import Booking, StatusReserva
+from app.models.booking import Booking, OrigemReserva, StatusReserva
 from app.models.configuracao import Configuracao, JanelaReposicao
 from app.models.enrollment import Enrollment
 from app.models.patient import Patient
@@ -21,10 +22,13 @@ from app.models.service import Service
 from app.models.session import Session
 from app.services.schedule_service import FUSO
 
+#: O que gerou o direito: falta registrada, ou aviso de que não vinha.
+TipoPendencia = Literal["falta", "aviso"]
+
 
 @dataclass
 class FaltaPendente:
-    """Uma falta que ainda dá direito a repor e ainda não foi reposta."""
+    """Uma falta (ou aviso) que ainda dá direito a repor e não foi reposta."""
 
     booking_id: int
     patient_id: int
@@ -37,6 +41,7 @@ class FaltaPendente:
     motivo: str | None
     repor_ate: date | None
     dias_restantes: int | None
+    tipo: TipoPendencia = "falta"
 
 
 def _config(db: DbSession) -> Configuracao:
@@ -51,6 +56,16 @@ def _config(db: DbSession) -> Configuracao:
             falta_consome_sessao_do_pacote=False,
         )
     return cfg
+
+
+def hoje_no_studio() -> date:
+    """O dia de HOJE no fuso do studio, não no do servidor.
+
+    `date.today()` usa o fuso do processo, que em container é UTC: a partir
+    das 21h em São Paulo já seria "amanhã", e o prazo do último dia do mês
+    venceria três horas antes da hora.
+    """
+    return datetime.now(FUSO).date()
 
 
 def _fim_do_mes(d: date) -> date:
@@ -84,16 +99,29 @@ def prazo_para_repor(db: DbSession, falta_em: date, matricula: Enrollment | None
 
 
 def listar_pendentes(db: DbSession, *, incluir_vencidas: bool = False) -> list[FaltaPendente]:
-    """Faltas que ainda podem ser repostas e ainda não foram.
+    """Faltas e avisos que ainda podem ser repostos e ainda não foram.
 
-    Uma falta é pendente quando:
-      - status = 'falta'
-      - E (a configuração não exige justificativa OU ela é justificada)
-      - E ninguém ainda repôs esta falta (NOT EXISTS)
-      - E ainda está dentro da janela de reposição
+    Dá direito a repor (confirmado pela cliente, premissas.md P5):
+      - FALTA, se a configuração não exige justificativa OU ela é justificada
+      - CANCELADA COM AVISO: o paciente avisou que não vinha. Reposição
+        cancelada fica de fora — quem volta a ficar pendente é a falta que
+        ela repunha, e contar as duas daria direito em dobro.
+
+    E, nos dois casos:
+      - ninguém ainda repôs (NOT EXISTS)
+      - ainda está dentro da janela de reposição
     """
     cfg = _config(db)
-    hoje = date.today()
+    hoje = hoje_no_studio()
+
+    falta = Booking.status == StatusReserva.FALTA
+    if cfg.reposicao_exige_justificativa:
+        falta = and_(falta, Booking.justificada.is_(True))
+    aviso = and_(
+        Booking.status == StatusReserva.CANCELADA,
+        Booking.cancelado_com_aviso.is_(True),
+        Booking.origem != OrigemReserva.REPOSICAO,
+    )
 
     reposicao = aliased(Booking)
     stmt = (
@@ -102,7 +130,7 @@ def listar_pendentes(db: DbSession, *, incluir_vencidas: bool = False) -> list[F
         .join(Patient, Patient.id == Booking.patient_id)
         .join(Service, Service.id == Session.service_id)
         .where(
-            Booking.status == StatusReserva.FALTA,
+            or_(falta, aviso),
             # NOT EXISTS: ninguém repôs esta falta ainda.
             ~select(reposicao.id)
             .where(
@@ -113,8 +141,6 @@ def listar_pendentes(db: DbSession, *, incluir_vencidas: bool = False) -> list[F
         )
         .order_by(Session.inicia_em.desc())
     )
-    if cfg.reposicao_exige_justificativa:
-        stmt = stmt.where(Booking.justificada.is_(True))
 
     pendentes: list[FaltaPendente] = []
     for reserva, paciente, servico, sessao in db.execute(stmt).all():
@@ -127,19 +153,21 @@ def listar_pendentes(db: DbSession, *, incluir_vencidas: bool = False) -> list[F
         if limite is not None and limite < hoje and not incluir_vencidas:
             continue
 
+        avisou = reserva.status is StatusReserva.CANCELADA
         pendentes.append(
             FaltaPendente(
                 booking_id=reserva.id,
                 patient_id=paciente.id,
-                paciente_nome=paciente.nome_completo,
+                paciente_nome=paciente.nome_exibicao,
                 paciente_telefone=paciente.telefone,
                 servico_nome=servico.nome,
                 service_id=servico.id,
                 faltou_em=faltou_em,
                 justificada=reserva.justificada,
-                motivo=reserva.motivo_justificativa,
+                motivo=reserva.motivo_cancelamento if avisou else reserva.motivo_justificativa,
                 repor_ate=limite,
                 dias_restantes=(limite - hoje).days if limite is not None else None,
+                tipo="aviso" if avisou else "falta",
             )
         )
     return pendentes
@@ -153,6 +181,7 @@ def periodo_para_oferecer(db: DbSession, pendente: FaltaPendente) -> tuple[date,
     """
     from app.services.enrollment_service import HORIZONTE_SEMANAS
 
-    inicio = date.today() + timedelta(days=1)
-    fim = pendente.repor_ate or (date.today() + timedelta(weeks=HORIZONTE_SEMANAS))
+    hoje = hoje_no_studio()
+    inicio = hoje + timedelta(days=1)
+    fim = pendente.repor_ate or (hoje + timedelta(weeks=HORIZONTE_SEMANAS))
     return inicio, max(inicio, fim)

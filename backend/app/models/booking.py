@@ -9,6 +9,7 @@ from sqlalchemy import (
     Index,
     SmallInteger,
     Text,
+    func,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -165,8 +166,42 @@ class Booking(Base, TimestampMixin):
     # Informação, não regra: diz QUANDO a vaga liberou.
     cancelado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     motivo_cancelamento: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # O paciente AVISOU que não vem. Confirmado pela cliente: dá direito a
+    # repor, como a falta justificada. Explícito, e não deduzido do cancelamento:
+    # remarcação, suspensão de matrícula e turma cancelada também cancelam a
+    # reserva e não podem gerar reposição.
+    cancelado_com_aviso: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
 
     criado_por_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     def __repr__(self) -> str:
         return f"<Booking {self.id} sessao={self.session_id} pos={self.posicao} {self.status}>"
+
+
+class AlteracaoPresenca(Base):
+    """Histórico de registro de presença: quem marcou o quê, e quando.
+
+    Presença e falta têm consequência financeira — `presente` consome saldo
+    do pacote e a falta justificada dá direito a repor. Como a recepção pode
+    corrigir um registro errado, guardar só o estado atual apagaria o rastro
+    do erro. Uma linha por mudança, nunca editada.
+    """
+
+    __tablename__ = "alteracoes_presenca"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    booking_id: Mapped[int] = mapped_column(ForeignKey("bookings.id"), nullable=False, index=True)
+    status_anterior: Mapped[StatusReserva] = mapped_column(
+        coluna_enum(StatusReserva), nullable=False
+    )
+    status_novo: Mapped[StatusReserva] = mapped_column(coluna_enum(StatusReserva), nullable=False)
+    justificada: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    alterado_por_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    alterado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    def __repr__(self) -> str:
+        return f"<AlteracaoPresenca {self.booking_id} {self.status_anterior}->{self.status_novo}>"

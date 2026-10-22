@@ -29,7 +29,7 @@ export function Reposicoes() {
     <>
       <PageHeader
         title="Reposições Pendentes"
-        subtitle="Faltas que ainda dão direito a repor"
+        subtitle="Faltas justificadas e avisos que ainda dão direito a repor"
         action={
           <Button
             variante="secundario"
@@ -88,7 +88,8 @@ export function Reposicoes() {
             <div className="rounded-card border border-dashed border-edge bg-surface p-10 text-center">
               <CalendarCheck size={32} className="mx-auto text-muted" />
               <p className="mt-3 text-[15px] text-muted">
-                Nenhuma reposição pendente. Toda falta justificada já foi remarcada.
+                Nenhuma reposição pendente. Toda falta justificada e todo aviso já foram
+                remarcados.
               </p>
             </div>
           ) : (

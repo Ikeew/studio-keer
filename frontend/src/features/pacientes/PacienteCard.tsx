@@ -27,7 +27,7 @@ export function PacienteCard({ paciente, onEditar, onVerMatriculas }: Props) {
     <article className="flex flex-col rounded-card border border-edge bg-surface p-6 shadow-card">
       <div className="mb-4 flex items-start justify-between">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-lg font-semibold text-white">
-          {inicial(paciente.nome_completo)}
+          {inicial(paciente.nome_exibicao)}
         </div>
         {paciente.consentimento_lgpd ? (
           <span
@@ -46,7 +46,10 @@ export function PacienteCard({ paciente, onEditar, onVerMatriculas }: Props) {
         )}
       </div>
 
-      <h3 className="font-heading text-xl font-semibold">{paciente.nome_completo}</h3>
+      <h3 className="font-heading text-xl font-semibold">{paciente.nome_exibicao}</h3>
+      {paciente.nome_social && (
+        <p className="mt-1 text-sm text-muted">Nome civil: {paciente.nome_completo}</p>
+      )}
       {!paciente.ativo && (
         <span className="mt-1 self-start rounded-full bg-edge px-2 py-0.5 text-sm text-muted">
           Inativo

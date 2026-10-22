@@ -267,6 +267,29 @@ class TestIdempotencia:
         assert db.execute(select(func.count()).select_from(Charge)).scalar_one() == 0
         assert db.execute(select(func.count()).select_from(Booking)).scalar_one() == 0
 
+    def test_limpar_depois_de_marcar_presenca_ao_vivo(
+        self, db: Session, admin: User, recepcao: User, instrutor: User
+    ) -> None:
+        """Marcar presença pela tela grava histórico, que aponta para a reserva.
+
+        Sem apagá-lo antes, regerar o seed quebrava por chave estrangeira.
+        """
+        from app.services import booking_service
+
+        _preparar(db, admin, recepcao, instrutor)
+        demo_service.semear(db)
+        reserva = (
+            db.execute(select(Booking).where(Booking.status == StatusReserva.AGENDADA))
+            .scalars()
+            .first()
+        )
+        assert reserva is not None
+        booking_service.registrar_presenca(db, reserva.id, alterado_por_id=recepcao.id)
+
+        demo_service.limpar(db)
+
+        assert db.execute(select(func.count()).select_from(Booking)).scalar_one() == 0
+
     def test_limpar_preserva_dado_digitado_a_mao(
         self, db: Session, admin: User, recepcao: User, instrutor: User
     ) -> None:

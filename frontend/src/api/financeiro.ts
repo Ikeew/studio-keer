@@ -32,9 +32,11 @@ export function useCobrancas(params: {
   })
 }
 
-export function useTotais() {
+/** Só admin: a API recusa os demais perfis com 403. */
+export function useTotais(habilitado: boolean) {
   return useQuery({
     queryKey: ['cobrancas', 'totais'],
+    enabled: habilitado,
     queryFn: async (): Promise<TotaisFinanceiros> => {
       const { data } = await api.get<TotaisFinanceiros>('/charges/totais')
       return data
@@ -55,6 +57,8 @@ function useAcaoFinanceira<TVars, TResult>(fn: (v: TVars) => Promise<TResult>) {
       Promise.all([
         qc.invalidateQueries({ queryKey: ['cobrancas'] }),
         qc.invalidateQueries({ queryKey: ['dashboard'] }),
+        // Cancelar uma venda de produto devolve as peças ao estoque.
+        qc.invalidateQueries({ queryKey: ['produtos'] }),
       ]),
   })
 }
@@ -70,6 +74,18 @@ export function useMarcarPago() {
 export function useDesfazerPagamento() {
   return useAcaoFinanceira(
     async (id: number) => (await api.post<Cobranca>(`/charges/${id}/desfazer`)).data,
+  )
+}
+
+/** Só admin: custos extras da cobrança, em centavos. Zero apaga. */
+export function useDefinirCustoExtra() {
+  return useAcaoFinanceira(
+    async (v: { id: number; centavos: number }) =>
+      (
+        await api.put<Cobranca>(`/charges/${v.id}/custo-extra`, {
+          custo_extra_centavos: v.centavos,
+        })
+      ).data,
   )
 }
 

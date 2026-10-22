@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from './client'
-import type { GradeSemanal, Origem, SessaoNaGrade } from '@/types/agenda'
+import type { GradeSemanal, Modalidade, Origem, SessaoNaGrade } from '@/types/agenda'
 
 export function useGradeSemanal(referencia: string) {
   return useQuery({
@@ -46,6 +46,16 @@ export function useSessoesComVaga(params: {
   })
 }
 
+/** Modalidades ativas para o filtro. Os três perfis leem — sem preço. */
+export function useModalidades() {
+  return useQuery({
+    queryKey: ['agenda', 'modalidades'],
+    queryFn: async (): Promise<Modalidade[]> =>
+      (await api.get<Modalidade[]>('/agenda/modalidades')).data,
+    staleTime: 5 * 60_000,
+  })
+}
+
 function useAcaoNaAgenda<TVars, TResult>(fn: (v: TVars) => Promise<TResult>) {
   const qc = useQueryClient()
   return useMutation({
@@ -83,8 +93,12 @@ export function useCriarReserva() {
 
 export function useCancelarReserva() {
   return useAcaoNaAgenda(
-    async (v: { id: number; motivo?: string }) =>
-      (await api.post(`/bookings/${v.id}/cancelar`, { motivo: v.motivo })).data,
+    // `comAviso`: o paciente avisou que não vem e ganha direito a repor.
+    async (v: { id: number; motivo?: string; comAviso?: boolean }) =>
+      (await api.post(`/bookings/${v.id}/cancelar`, {
+        motivo: v.motivo,
+        com_aviso: v.comAviso ?? false,
+      })).data,
   )
 }
 
@@ -103,6 +117,13 @@ export function useFalta() {
         justificada: v.justificada,
         motivo: v.motivo,
       })).data,
+  )
+}
+
+/** Desfaz presença ou falta registrada por engano. */
+export function useLimparPresenca() {
+  return useAcaoNaAgenda(
+    async (id: number) => (await api.post(`/bookings/${id}/limpar-presenca`)).data,
   )
 }
 

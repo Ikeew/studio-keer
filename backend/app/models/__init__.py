@@ -5,7 +5,7 @@ Todo model precisa ser importado aqui: o Alembic descobre as tabelas por
 falta nesta lista some silenciosamente do autogenerate.
 """
 
-from app.models.booking import Booking, OrigemReserva, StatusReserva
+from app.models.booking import AlteracaoPresenca, Booking, OrigemReserva, StatusReserva
 from app.models.charge import (
     Charge,
     FormaPagamento,
@@ -21,11 +21,13 @@ from app.models.enrollment import (
 )
 from app.models.package import Package, StatusPacote
 from app.models.patient import EstadoCivil, Patient, Sexo
+from app.models.produto import MovimentoEstoque, Produto, TipoMovimento
 from app.models.service import ModeloCobranca, Service
 from app.models.session import Session, StatusSessao
 from app.models.user import Papel, User
 
 __all__ = [
+    "AlteracaoPresenca",
     "Blackout",
     "Booking",
     "Charge",
@@ -37,10 +39,12 @@ __all__ = [
     "HorarioFuncionamento",
     "JanelaReposicao",
     "ModeloCobranca",
+    "MovimentoEstoque",
     "OrigemReserva",
     "Package",
     "Papel",
     "Patient",
+    "Produto",
     "Service",
     "Session",
     "Sexo",
@@ -50,5 +54,6 @@ __all__ = [
     "StatusReserva",
     "StatusSessao",
     "TipoCobranca",
+    "TipoMovimento",
     "User",
 ]
