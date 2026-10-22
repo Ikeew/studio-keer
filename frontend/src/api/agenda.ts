@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from './client'
-import type { GradeSemanal, Origem, SessaoNaGrade } from '@/types/agenda'
+import type { GradeSemanal, Modalidade, Origem, SessaoNaGrade } from '@/types/agenda'
 
 export function useGradeSemanal(referencia: string) {
   return useQuery({
@@ -43,6 +43,16 @@ export function useSessoesComVaga(params: {
       })
       return data
     },
+  })
+}
+
+/** Modalidades ativas para o filtro. Os três perfis leem — sem preço. */
+export function useModalidades() {
+  return useQuery({
+    queryKey: ['agenda', 'modalidades'],
+    queryFn: async (): Promise<Modalidade[]> =>
+      (await api.get<Modalidade[]>('/agenda/modalidades')).data,
+    staleTime: 5 * 60_000,
   })
 }
 

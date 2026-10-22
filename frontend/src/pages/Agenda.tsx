@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import { useGradeSemanal } from '@/api/agenda'
 import { useAuth } from '@/auth/useAuth'
@@ -8,6 +9,7 @@ import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { AvisoDeGrade } from '@/features/agenda/AvisoDeGrade'
 import { CelulaDaGrade } from '@/features/agenda/CelulaDaGrade'
+import { FiltroDeModalidade } from '@/features/agenda/FiltroDeModalidade'
 import { Legenda } from '@/features/agenda/Legenda'
 import { NovaTurmaForm } from '@/features/agenda/NovaTurmaForm'
 import { PainelDaSessao } from '@/features/agenda/PainelDaSessao'
@@ -21,6 +23,14 @@ function segundaDe(d: Date): string {
   const diff = (copia.getDay() + 6) % 7
   copia.setDate(copia.getDate() - diff)
   return copia.toISOString().slice(0, 10)
+}
+
+/** `?modalidades=1,3` -> [1, 3]. Na URL, o filtro sobrevive a recarregar. */
+function lerModalidades(valor: string | null): number[] {
+  return (valor ?? '')
+    .split(',')
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n > 0)
 }
 
 function somarDias(iso: string, dias: number): string {
@@ -43,6 +53,27 @@ export function Agenda() {
   } | null>(null)
 
   const { data: grade, isPending, isError } = useGradeSemanal(referencia)
+
+  // O filtro mora na URL, não no estado da semana: trocar de semana mantém a
+  // seleção, e recarregar a página também.
+  const [params, setParams] = useSearchParams()
+  const modalidades = lerModalidades(params.get('modalidades'))
+  const mudarModalidades = (ids: number[]) =>
+    setParams(
+      (atual) => {
+        const proximo = new URLSearchParams(atual)
+        if (ids.length) proximo.set('modalidades', ids.join(','))
+        else proximo.delete('modalidades')
+        return proximo
+      },
+      { replace: true },
+    )
+  const chaveFiltro = modalidades.join(',')
+  const sessoesVisiveis = useMemo(() => {
+    const ids = new Set(lerModalidades(chaveFiltro))
+    const todas = grade?.sessoes ?? []
+    return ids.size === 0 ? todas : todas.filter((s) => ids.has(s.service_id))
+  }, [grade, chaveFiltro])
   // Só a recepção e a proprietária criam turma; o instrutor não deve
   // sequer disparar a requisição, que ele receberia como 403.
   const { data: instrutores } = useInstrutores(podeEscrever)
@@ -59,12 +90,12 @@ export function Agenda() {
 
   const sessoesPor = useMemo(() => {
     const mapa = new Map<string, SessaoNaGrade[]>()
-    grade?.sessoes.forEach((s) => {
+    sessoesVisiveis.forEach((s) => {
       const chave = `${s.dia}|${s.hora}`
       mapa.set(chave, [...(mapa.get(chave) ?? []), s])
     })
     return mapa
-  }, [grade])
+  }, [sessoesVisiveis])
 
   // Mantém o painel sincronizado depois de uma ação (marcar presença, etc).
   const sessaoAtual = sessaoAberta
@@ -112,7 +143,9 @@ export function Agenda() {
 
       <AvisoDeGrade />
 
-      <Legenda sessoes={grade?.sessoes ?? []} />
+      <FiltroDeModalidade selecionadas={modalidades} onMudar={mudarModalidades} />
+
+      <Legenda sessoes={sessoesVisiveis} />
 
       {isError && (
         <p role="alert" className="rounded-card bg-badge-alerta px-4 py-3">

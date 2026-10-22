@@ -2,10 +2,12 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session as DbSession
 
 from app.core.deps import CurrentUser, require_papel
 from app.db.session import get_db
+from app.models.service import Service
 from app.models.user import Papel
 from app.schemas.agenda import (
     BookingCancel,
@@ -15,6 +17,7 @@ from app.schemas.agenda import (
     BookingRemarcar,
     DiaDaGrade,
     GradeSemanal,
+    ModalidadeRead,
     ReservaNaGrade,
     SessaoNaGrade,
     SessionCreate,
@@ -108,6 +111,20 @@ def grade_semanal(
         ],
         sessoes=[_para_grade(s, registros) for s in sessoes],
     )
+
+
+@router.get("/agenda/modalidades", response_model=list[ModalidadeRead], dependencies=[LEITURA])
+def modalidades(db: Db) -> list[ModalidadeRead]:
+    """Modalidades ativas, para o filtro da agenda.
+
+    Rota própria, e não `/services`, porque o instrutor também filtra a
+    agenda e não tem acesso ao catálogo (que traz preço). Vir da grade da
+    semana não serviria: a modalidade sumiria do filtro numa semana sem turma.
+    """
+    servicos = db.execute(
+        select(Service).where(Service.ativo.is_(True)).order_by(Service.nome)
+    ).scalars()
+    return [ModalidadeRead.model_validate(s) for s in servicos]
 
 
 @router.get("/agenda/vagas", response_model=list[SessaoNaGrade], dependencies=[LEITURA])

@@ -38,6 +38,16 @@ class SessionCreate(BaseModel):
         return v
 
 
+class ModalidadeRead(BaseModel):
+    """Opção do filtro da agenda. Só o que a grade precisa — sem preço."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    nome: str
+    cor: str
+
+
 class ReservaNaGrade(BaseModel):
     """Reserva como aparece no card da grade."""
 

@@ -25,6 +25,13 @@ export const ORIGEM_LABEL: Record<Origem, string> = {
   remarcacao: 'Remarcação',
 }
 
+/** Opção do filtro da agenda. */
+export type Modalidade = {
+  id: number
+  nome: string
+  cor: string
+}
+
 export type ReservaNaGrade = {
   id: number
   patient_id: number
