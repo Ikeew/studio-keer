@@ -48,7 +48,7 @@ export type PeriodoDeAnalise = {
   granularidade: 'semana' | 'mes'
 }
 
-export type TipoDeCobranca = 'mensalidade' | 'pacote' | 'avulsa'
+export type TipoDeCobranca = 'mensalidade' | 'pacote' | 'avulsa' | 'produto'
 
 export type BaldeDeReceita = {
   inicio: string

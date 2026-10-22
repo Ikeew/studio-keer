@@ -513,8 +513,8 @@ def _pagamentos_do_periodo(db: DbSession, periodo: Periodo) -> list[_Pagamento]:
 class BaldeDeReceita:
     """Quanto entrou em `[inicio, fim]`, aberto por tipo de cobrança.
 
-    `por_tipo` tem SEMPRE as três chaves (mensalidade, pacote, avulsa), zero
-    quando não houver — a tela empilha as três sem precisar adivinhar.
+    `por_tipo` tem SEMPRE todas as chaves de TipoCobranca, zero
+    quando não houver — a tela empilha todas sem precisar adivinhar.
     `em_andamento` marca o balde que contém hoje: ele ainda vai crescer, e
     compará-lo com um mês fechado sem esse aviso sugere queda que não houve.
     """

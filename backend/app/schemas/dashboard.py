@@ -63,7 +63,7 @@ class BaldeDeReceitaRead(BaseModel):
     inicio: date
     fim: date
     recebido_centavos: int
-    #: Sempre as três chaves de TipoCobranca, zero quando não houver.
+    #: Sempre todas as chaves de TipoCobranca, zero quando não houver.
     por_tipo: dict[TipoCobranca, int]
     #: True só no balde que contém hoje — ainda vai crescer.
     em_andamento: bool

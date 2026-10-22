@@ -87,6 +87,7 @@ export function ReceitaNoTempo({ receita, granularidade, className }: Props) {
                 <th className="px-3 py-2 text-right font-medium">Mensalidades</th>
                 <th className="px-3 py-2 text-right font-medium">Pacotes</th>
                 <th className="px-3 py-2 text-right font-medium">Avulsas</th>
+                <th className="px-3 py-2 text-right font-medium">Produtos</th>
                 <th className="px-3 py-2 text-right font-medium">Total</th>
               </tr>
             </thead>
@@ -100,6 +101,7 @@ export function ReceitaNoTempo({ receita, granularidade, className }: Props) {
                   <td className="px-3 py-2 text-right">{reais(b.por_tipo.mensalidade)}</td>
                   <td className="px-3 py-2 text-right">{reais(b.por_tipo.pacote)}</td>
                   <td className="px-3 py-2 text-right">{reais(b.por_tipo.avulsa)}</td>
+                  <td className="px-3 py-2 text-right">{reais(b.por_tipo.produto)}</td>
                   <td className="px-3 py-2 text-right font-medium">
                     {reais(b.recebido_centavos)}
                   </td>
@@ -112,6 +114,7 @@ export function ReceitaNoTempo({ receita, granularidade, className }: Props) {
                 <td className="px-3 py-2 text-right">{reais(soma('mensalidade'))}</td>
                 <td className="px-3 py-2 text-right">{reais(soma('pacote'))}</td>
                 <td className="px-3 py-2 text-right">{reais(soma('avulsa'))}</td>
+                <td className="px-3 py-2 text-right">{reais(soma('produto'))}</td>
                 <td className="px-3 py-2 text-right">{reais(receita.recebido_centavos)}</td>
               </tr>
             </tfoot>
@@ -153,6 +156,7 @@ export function ReceitaNoTempo({ receita, granularidade, className }: Props) {
                       { valor: reais(b.por_tipo.mensalidade), rotulo: 'Mensalidades' },
                       { valor: reais(b.por_tipo.pacote), rotulo: 'Pacotes' },
                       { valor: reais(b.por_tipo.avulsa), rotulo: 'Avulsas' },
+                      { valor: reais(b.por_tipo.produto), rotulo: 'Produtos' },
                     ]}
                     alinhamento={i === 0 ? 'inicio' : i === iUltimo ? 'fim' : 'centro'}
                     className="flex h-full min-w-0 flex-1 items-end justify-center rounded"

@@ -14,6 +14,7 @@ import { Aviso } from '@/components/ui/Aviso'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { Estoque } from '@/features/financeiro/Estoque'
 import { RegistrarPagamento } from '@/features/financeiro/RegistrarPagamento'
 import { VendaDePacote } from '@/features/financeiro/VendaDePacote'
 import { cn } from '@/lib/cn'
@@ -135,6 +136,8 @@ export function Financeiro() {
           />
         </div>
       )}
+
+      <Estoque ehAdmin={ehAdmin} />
 
       <div className="mb-6 flex flex-wrap items-center gap-3">
         {FILTROS.map((f) => (

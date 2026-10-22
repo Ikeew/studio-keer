@@ -28,11 +28,12 @@ export const FORMA_LABEL: Record<FormaPagamento, string> = {
 
 export type Cobranca = {
   id: number
-  patient_id: number
+  /** Nulo em venda de produto para quem não é paciente. */
+  patient_id: number | null
   paciente_nome: string
   /** Formatado, para a nota fiscal. Só vem para admin; null também sem CPF. */
   paciente_cpf: string | null
-  tipo: 'mensalidade' | 'pacote' | 'avulsa'
+  tipo: 'mensalidade' | 'pacote' | 'avulsa' | 'produto'
   descricao: string
   competencia_inicio: string | null
   competencia_fim: string | null

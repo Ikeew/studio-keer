@@ -57,6 +57,8 @@ function useAcaoFinanceira<TVars, TResult>(fn: (v: TVars) => Promise<TResult>) {
       Promise.all([
         qc.invalidateQueries({ queryKey: ['cobrancas'] }),
         qc.invalidateQueries({ queryKey: ['dashboard'] }),
+        // Cancelar uma venda de produto devolve as peças ao estoque.
+        qc.invalidateQueries({ queryKey: ['produtos'] }),
       ]),
   })
 }

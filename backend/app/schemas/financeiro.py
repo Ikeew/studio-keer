@@ -9,7 +9,9 @@ class ChargeRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    patient_id: int
+    #: Nulo em venda de produto para quem não é paciente.
+    patient_id: int | None
+    #: Nome civil do paciente, ou o do comprador numa venda de balcão.
     paciente_nome: str
     #: "123.456.789-09", para a nota fiscal. Só para admin: None para os
     #: demais perfis, e também quando o paciente não tem CPF cadastrado.

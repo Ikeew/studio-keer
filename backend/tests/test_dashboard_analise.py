@@ -245,12 +245,14 @@ class TestSerieDeReceita:
             TipoCobranca.MENSALIDADE: 30_000,
             TipoCobranca.PACOTE: 9_000,
             TipoCobranca.AVULSA: 1_000,
+            TipoCobranca.PRODUTO: 0,
         }
-        # As três chaves sempre presentes, mesmo zeradas.
+        # Todas as chaves sempre presentes, mesmo zeradas.
         assert serie[1].por_tipo == {
             TipoCobranca.MENSALIDADE: 20_000,
             TipoCobranca.PACOTE: 0,
             TipoCobranca.AVULSA: 0,
+            TipoCobranca.PRODUTO: 0,
         }
         assert [b.em_andamento for b in serie] == [False, False, True]
 
@@ -638,7 +640,7 @@ class TestApiDaAnalise:
         assert set(corpo["receita"]) == {"recebido_centavos", "pagamentos", "serie"}
         balde = corpo["receita"]["serie"][-1]
         assert set(balde) == {"inicio", "fim", "recebido_centavos", "por_tipo", "em_andamento"}
-        assert set(balde["por_tipo"]) == {"mensalidade", "pacote", "avulsa"}
+        assert set(balde["por_tipo"]) == {"mensalidade", "pacote", "avulsa", "produto"}
         assert balde["em_andamento"] is True
         assert set(corpo["ocupacao"]) == {
             "percentual",

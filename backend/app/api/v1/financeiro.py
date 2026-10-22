@@ -25,6 +25,7 @@ from app.schemas.financeiro import (
     VendaDePacote,
 )
 from app.services import charge_service, package_service
+from app.services.produto_service import COMPRADOR_PADRAO
 
 router = APIRouter(tags=["financeiro"])
 
@@ -36,13 +37,22 @@ OPERADORES = Depends(require_papel(Papel.ADMIN, Papel.RECEPCAO))
 SO_ADMIN = Depends(require_papel(Papel.ADMIN))
 
 
-def _para_leitura(cobranca: Charge, paciente: Patient, *, com_cpf: bool = False) -> ChargeRead:
-    """`com_cpf` só para admin: CPF é dado pessoal e a nota é emitida por ela."""
+def _para_leitura(
+    cobranca: Charge, paciente: Patient | None, *, com_cpf: bool = False
+) -> ChargeRead:
+    """`com_cpf` só para admin: CPF é dado pessoal e a nota é emitida por ela.
+
+    Sem paciente (venda de produto no balcão), o nome é o do comprador.
+    """
     return ChargeRead(
         id=cobranca.id,
-        patient_id=paciente.id,
-        paciente_nome=paciente.nome_completo,
-        paciente_cpf=formatar_cpf(paciente.cpf) if com_cpf and paciente.cpf else None,
+        patient_id=paciente.id if paciente else None,
+        paciente_nome=(
+            paciente.nome_completo if paciente else (cobranca.comprador_nome or COMPRADOR_PADRAO)
+        ),
+        paciente_cpf=(
+            formatar_cpf(paciente.cpf) if com_cpf and paciente and paciente.cpf else None
+        ),
         tipo=cobranca.tipo,
         descricao=cobranca.descricao,
         competencia_inicio=cobranca.competencia_inicio,
@@ -55,9 +65,8 @@ def _para_leitura(cobranca: Charge, paciente: Patient, *, com_cpf: bool = False)
     )
 
 
-def _recarregar(db: DbSession, cobranca: Charge, *, com_cpf: bool = False) -> ChargeRead:
-    paciente = db.get(Patient, cobranca.patient_id)
-    assert paciente is not None
+def cobranca_para_leitura(db: DbSession, cobranca: Charge, *, com_cpf: bool = False) -> ChargeRead:
+    paciente = db.get(Patient, cobranca.patient_id) if cobranca.patient_id is not None else None
     return _para_leitura(cobranca, paciente, com_cpf=com_cpf)
 
 
@@ -107,7 +116,7 @@ def obter(charge_id: int, db: Db, usuario: CurrentUser) -> ChargeRead:
     Sem esta rota, pedir uma cobrança pelo id devolvia 405 — um erro que não
     diz nada a quem está integrando ou depurando.
     """
-    return _recarregar(db, charge_service.buscar(db, charge_id), com_cpf=_ve_cpf(usuario))
+    return cobranca_para_leitura(db, charge_service.buscar(db, charge_id), com_cpf=_ve_cpf(usuario))
 
 
 @router.post(
@@ -133,7 +142,7 @@ def marcar_pago(charge_id: int, dados: MarcarPago, db: Db, usuario: CurrentUser)
         db, charge_id, registrado_por_id=usuario.id, forma=dados.forma_pagamento
     )
     db.commit()
-    return _recarregar(db, cobranca)
+    return cobranca_para_leitura(db, cobranca)
 
 
 @router.post("/charges/{charge_id}/desfazer", response_model=ChargeRead, dependencies=[OPERADORES])
@@ -145,15 +154,20 @@ def desfazer_pagamento(charge_id: int, db: Db, usuario: CurrentUser) -> ChargeRe
     """
     cobranca = charge_service.desfazer_pagamento(db, charge_id, registrado_por_id=usuario.id)
     db.commit()
-    return _recarregar(db, cobranca)
+    return cobranca_para_leitura(db, cobranca)
 
 
 @router.delete("/charges/{charge_id}", response_model=ChargeRead, dependencies=[SO_ADMIN])
-def cancelar(charge_id: int, dados: CancelarCobranca, db: Db) -> ChargeRead:
-    """Cancela a cobrança — ela deixa de ser devida. Só a proprietária."""
-    cobranca = charge_service.cancelar(db, charge_id, motivo=dados.motivo)
+def cancelar(charge_id: int, dados: CancelarCobranca, db: Db, usuario: CurrentUser) -> ChargeRead:
+    """Cancela a cobrança — ela deixa de ser devida. Só a proprietária.
+
+    Se for venda de produto, as peças voltam ao estoque.
+    """
+    cobranca = charge_service.cancelar(
+        db, charge_id, motivo=dados.motivo, cancelado_por_id=usuario.id
+    )
     db.commit()
-    return _recarregar(db, cobranca)
+    return cobranca_para_leitura(db, cobranca)
 
 
 # ── PACOTES ──────────────────────────────────────────────────────────────────

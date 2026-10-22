@@ -327,6 +327,29 @@ id, user_id, entidade, entidade_id, acao, dados (JSONB), criado_em
 
 Exigência de LGPD e rastro de quem alterou agenda e pagamento.
 
+### `produtos` e `movimentos_estoque`
+
+```
+produtos:            id, nome, tamanho, preco_centavos, estoque_minimo, ativo
+movimentos_estoque:  id, produto_id, quantidade, tipo, charge_id,
+                     observacao, registrado_por_id, criado_em
+```
+
+Estoque **bem simples** de meia e camiseta, a pedido da equipe: sem
+fornecedor, lote nem nota de entrada. Um produto **por tamanho** (`UNIQUE
+(nome, tamanho)`), porque é por tamanho que o estoque acaba.
+
+**O estoque é `SUM(quantidade)` dos movimentos, nunca coluna** — mesma regra
+das vagas da turma. `tipo`: `entrada` (+, reposição manual), `venda` (−, com
+`charge_id`) e `estorno` (+, venda cancelada devolve). CHECK amarra o sinal
+ao tipo. A venda trava o produto com `FOR UPDATE` para duas vendas da última
+peça não deixarem o estoque negativo.
+
+A venda gera uma cobrança `tipo = 'produto'` que **já nasce paga**, com a
+forma de pagamento. Pode ser para quem não é paciente: `charges.patient_id`
+fica nulo e `comprador_nome` diz quem comprou ("Studio Keer" se ninguém
+informar) — o CHECK `tem_pagador` só permite isso em venda de produto.
+
 ---
 
 ## Onde a capacidade é verificada

@@ -193,15 +193,27 @@ def desfazer_pagamento(db: DbSession, charge_id: int, *, registrado_por_id: int)
     return cobranca
 
 
-def cancelar(db: DbSession, charge_id: int, *, motivo: str | None = None) -> Charge:
+def cancelar(
+    db: DbSession,
+    charge_id: int,
+    *,
+    motivo: str | None = None,
+    cancelado_por_id: int | None = None,
+) -> Charge:
     """Cancela a cobrança — ela deixa de ser devida.
 
     Restrito ao admin: perdoar dívida é decisão da proprietária, não da
     recepção. A rota é quem aplica o RBAC.
+
+    Venda de produto cancelada devolve as peças ao estoque.
     """
+    from app.services import produto_service
+
     cobranca = buscar(db, charge_id)
     cobranca.status = StatusCobranca.CANCELADO
     cobranca.motivo_cancelamento = motivo
+    if cobranca.tipo is TipoCobranca.PRODUTO and cancelado_por_id is not None:
+        produto_service.estornar_venda(db, cobranca, registrado_por_id=cancelado_por_id)
     db.flush()
     return cobranca
 
@@ -232,9 +244,11 @@ def totais(db: DbSession) -> Totais:
 
 
 def _stmt_listagem(filtro: str | None, busca: str | None) -> Select[tuple[Charge, Patient]]:
+    # OUTER: venda de produto pode não ter paciente, e sumiria da lista. O
+    # tipo do Select não modela o outer join; `listar` devolve Patient | None.
     stmt = (
         select(Charge, Patient)
-        .join(Patient, Patient.id == Charge.patient_id)
+        .outerjoin(Patient, Patient.id == Charge.patient_id)
         .order_by(Charge.vencimento.desc(), Charge.id.desc())
     )
     if filtro == "pendentes":
@@ -248,7 +262,13 @@ def _stmt_listagem(filtro: str | None, busca: str | None) -> Select[tuple[Charge
 
     if busca:
         termo = f"%{busca.strip()}%"
-        stmt = stmt.where(or_(Patient.nome_completo.ilike(termo), Charge.descricao.ilike(termo)))
+        stmt = stmt.where(
+            or_(
+                Patient.nome_completo.ilike(termo),
+                Charge.comprador_nome.ilike(termo),
+                Charge.descricao.ilike(termo),
+            )
+        )
     return stmt
 
 
@@ -259,7 +279,7 @@ def listar(
     busca: str | None = None,
     pagina: int = 1,
     tamanho: int = 30,
-) -> tuple[list[tuple[Charge, Patient]], int]:
+) -> tuple[list[tuple[Charge, Patient | None]], int]:
     stmt = _stmt_listagem(filtro, busca)
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
     linhas = db.execute(stmt.offset((pagina - 1) * tamanho).limit(tamanho)).all()
