@@ -6,6 +6,7 @@ import { z } from 'zod'
 
 import { useAuth } from '@/auth/useAuth'
 import { rotaInicial } from '@/auth/permissoes'
+import { CampoSenha } from '@/components/ui/CampoSenha'
 
 const schema = z.object({
   email: z.string().min(1, 'Informe o e-mail').email('E-mail inválido'),
@@ -76,12 +77,10 @@ export function Login() {
             <label htmlFor="senha" className="mb-1 block text-sm font-medium">
               Senha
             </label>
-            <input
+            <CampoSenha
               id="senha"
-              type="password"
               autoComplete="current-password"
               {...register('senha')}
-              className="w-full rounded-card border border-edge px-4 py-3 outline-none focus:border-brand"
               aria-invalid={!!errors.senha}
               aria-describedby={errors.senha ? 'erro-senha' : undefined}
             />
