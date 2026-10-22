@@ -184,6 +184,7 @@ export function Financeiro() {
                 <th className="p-4 font-medium">Valor</th>
                 <th className="p-4 font-medium">Vencimento</th>
                 <th className="p-4 font-medium">Status</th>
+                <th className="p-4 font-medium">Pagamento</th>
                 <th className="p-4 font-medium">Ações</th>
               </tr>
             </thead>
@@ -224,10 +225,16 @@ export function Financeiro() {
                             ? 'Cancelado'
                             : 'Pendente'}
                     </span>
-                    {c.status === 'pago' && c.forma_pagamento && (
-                      <span className="ml-2 text-sm text-muted">
-                        · {FORMA_LABEL[c.forma_pagamento]}
-                      </span>
+                  </td>
+                  <td className="whitespace-nowrap p-4">
+                    {/* Só baixa tem forma. Pago sem forma é registro anterior
+                        ao campo existir. */}
+                    {c.status !== 'pago' ? (
+                      <span className="text-muted">—</span>
+                    ) : c.forma_pagamento ? (
+                      FORMA_LABEL[c.forma_pagamento]
+                    ) : (
+                      <span className="text-sm text-muted">Não informada</span>
                     )}
                   </td>
                   <td className="p-4">

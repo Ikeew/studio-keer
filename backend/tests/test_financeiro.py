@@ -276,6 +276,24 @@ class TestRbac:
         assert pago.status_code == 200 and pago.json()["status"] == "pago"
         assert desfeito.status_code == 200 and desfeito.json()["status"] == "pendente"
 
+    def test_baixa_sem_forma_de_pagamento_e_recusada(
+        self, client: TestClient, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        """Sem forma, a baixa caía em "outro" calada e o gráfico mentia."""
+        criar_configuracao(db)
+        _matricula(db, instrutor, "Sem Forma", date.today() - timedelta(days=30))
+        charge_service.gerar_mensalidades(db)
+        cobranca = db.execute(select(Charge)).scalars().first()
+        assert cobranca is not None
+        db.commit()
+        t = login(client, recepcao.email)
+
+        r = client.post(f"/api/v1/charges/{cobranca.id}/pagar", json={}, headers=auth(t))
+
+        assert r.status_code == 422
+        db.refresh(cobranca)
+        assert cobranca.status is StatusCobranca.PENDENTE
+
     def test_recepcao_nao_cancela_cobranca(
         self, client: TestClient, db: Session, instrutor: User, recepcao: User
     ) -> None:

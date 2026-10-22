@@ -58,7 +58,9 @@ class TotaisRead(BaseModel):
 
 
 class MarcarPago(BaseModel):
-    forma_pagamento: FormaPagamento = FormaPagamento.OUTRO
+    #: Obrigatória: sem ela a baixa caía em "outro" calada e o gráfico de
+    #: formas de pagamento mentia. Quem não sabe escolhe "outro" de propósito.
+    forma_pagamento: FormaPagamento
 
 
 class CancelarCobranca(BaseModel):
