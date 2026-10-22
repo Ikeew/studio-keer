@@ -1,4 +1,5 @@
 from datetime import date, datetime, time
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -108,6 +109,8 @@ class FaltaPendenteRead(BaseModel):
     motivo: str | None
     repor_ate: date | None
     dias_restantes: int | None
+    #: "falta" registrada, ou "aviso" de que não vinha (reserva cancelada).
+    tipo: Literal["falta", "aviso"]
     #: Janela em que faz sentido procurar vaga para esta falta.
     procurar_de: date
     procurar_ate: date

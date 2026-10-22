@@ -180,8 +180,13 @@ def criar_reserva(dados: BookingCreate, db: Db, usuario: CurrentUser) -> Booking
 
 @router.post("/bookings/{booking_id}/cancelar", response_model=BookingRead, dependencies=[ESCRITA])
 def cancelar_reserva(booking_id: int, dados: BookingCancel, db: Db) -> BookingRead:
-    """Cancela e libera a vaga para outra pessoa — inclusive para reposição."""
-    reserva = booking_service.cancelar(db, booking_id, motivo=dados.motivo)
+    """Cancela e libera a vaga para outra pessoa — inclusive para reposição.
+
+    Com `com_aviso`, o paciente avisou que não vem e ganha direito a repor.
+    """
+    reserva = booking_service.cancelar(
+        db, booking_id, motivo=dados.motivo, com_aviso=dados.com_aviso
+    )
     db.commit()
     return BookingRead.model_validate(reserva)
 

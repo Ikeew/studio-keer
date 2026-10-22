@@ -104,6 +104,8 @@ class BookingCreate(BaseModel):
 
 class BookingCancel(BaseModel):
     motivo: str | None = Field(default=None, max_length=500)
+    #: O paciente avisou que não vem — dá direito a repor (premissas.md, P5).
+    com_aviso: bool = False
 
 
 class BookingFalta(BaseModel):

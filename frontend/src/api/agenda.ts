@@ -83,8 +83,12 @@ export function useCriarReserva() {
 
 export function useCancelarReserva() {
   return useAcaoNaAgenda(
-    async (v: { id: number; motivo?: string }) =>
-      (await api.post(`/bookings/${v.id}/cancelar`, { motivo: v.motivo })).data,
+    // `comAviso`: o paciente avisou que não vem e ganha direito a repor.
+    async (v: { id: number; motivo?: string; comAviso?: boolean }) =>
+      (await api.post(`/bookings/${v.id}/cancelar`, {
+        motivo: v.motivo,
+        com_aviso: v.comAviso ?? false,
+      })).data,
   )
 }
 

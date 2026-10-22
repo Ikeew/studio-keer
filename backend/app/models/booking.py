@@ -165,6 +165,13 @@ class Booking(Base, TimestampMixin):
     # Informação, não regra: diz QUANDO a vaga liberou.
     cancelado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     motivo_cancelamento: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # O paciente AVISOU que não vem. Confirmado pela cliente: dá direito a
+    # repor, como a falta justificada. Explícito, e não deduzido do cancelamento:
+    # remarcação, suspensão de matrícula e turma cancelada também cancelam a
+    # reserva e não podem gerar reposição.
+    cancelado_com_aviso: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
 
     criado_por_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 

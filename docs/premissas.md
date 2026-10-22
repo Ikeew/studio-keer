@@ -25,7 +25,7 @@ Levar este arquivo para a reunião. Ao confirmar ou refutar um item, atualize o
 | P2 | Mensalidade (Pilates) | ✅ Vencimento · ⏳ **ciclo: aniversário adotado** |
 | P3 | Pacote de sessões (Fisioterapia) | ✅ **Fechado** — negociado por venda |
 | P4 | Prazo de cancelamento (24h) | ❌ **Descartada** — premissa do time, não da cliente |
-| P5 | Reposição de falta | ✅ **Contradição resolvida** |
+| P5 | Reposição de falta | ✅ **Contradição resolvida** · aviso também repõe |
 | P6 | Dias e janela de funcionamento | ✅ **Fechado** — inclui sábado e pausa |
 | P7 | Avaliação | ✅ Cobrada à parte · ⏳ obrigatoriedade |
 | P8 | Instrutor obrigatório e somente leitura | ⏳ Não validado |
@@ -240,6 +240,25 @@ afrouxar a exigência de justificativa para reposição.
 As duas continuam sendo **configuração no banco**, não regra em código. A
 contradição foi resolvida, mas o mecanismo que permitia acomodá-la fica: se a
 regra mudar, é editar um registro.
+
+### ✅ Avisar que não vem também dá direito a repor (out/2026)
+
+Confirmado pela equipe: o paciente que **avisa** que não vem repõe, como o
+que falta com justificativa. Falta **sem** justificativa continua sem direito.
+
+**Como ficou:** a recepção tem dois botões distintos na reserva —
+"Avisou que não vem" (cancela, libera a vaga **e** entra nas Reposições
+Pendentes) e "Cancelar reserva" (só desfaz, sem reposição). O aviso fica em
+`bookings.cancelado_com_aviso`, explícito: remarcação, suspensão de matrícula e
+turma cancelada pelo studio também cancelam reservas e **não** geram reposição.
+Avisar que não vem *numa reposição* não dobra o direito — quem volta a ficar
+pendente é a falta original.
+
+**Causa do bug "pacientes não aparecem na reposição":** o botão principal
+"Faltou" grava falta não justificada, que nunca entra na lista, e não havia
+como justificar depois; e quem avisava era cancelado, o que não gerava
+reposição. Agora a falta pode ser justificada depois de registrada (o atestado
+costuma chegar no dia seguinte).
 
 ### Definição precisa de "sessão consumida"
 

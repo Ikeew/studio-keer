@@ -137,22 +137,61 @@ export function PainelDaSessao({ sessao, onRemarcar }: Props) {
                     >
                       Remarcar
                     </Button>
+                    {/* Avisar dá direito a repor; cancelar é só desfazer a reserva. */}
                     <Button
                       variante="secundario"
                       className="px-3 py-2 text-sm"
+                      title="Libera a vaga e entra nas Reposições Pendentes"
                       onClick={() =>
-                        agir(() => cancelar.mutateAsync({ id: r.id, motivo: 'Avisou que não vem' }))
+                        agir(() =>
+                          cancelar.mutateAsync({
+                            id: r.id,
+                            motivo: motivoFalta[r.id] || 'Avisou que não vem',
+                            comAviso: true,
+                          }),
+                        )
                       }
                     >
-                      Cancelar
+                      Avisou que não vem
+                    </Button>
+                    <Button
+                      variante="secundario"
+                      className="px-3 py-2 text-sm"
+                      title="Desfaz a reserva sem gerar reposição"
+                      onClick={() =>
+                        agir(() =>
+                          cancelar.mutateAsync({ id: r.id, motivo: 'Reserva cancelada' }),
+                        )
+                      }
+                    >
+                      Cancelar reserva
                     </Button>
                   </>
                 )}
+                {/* O atestado costuma chegar depois da aula. Sem isto, a falta
+                    marcada como comum nunca entraria nas reposições. */}
+                {r.status === 'falta' && !r.justificada && (
+                  <Button
+                    variante="secundario"
+                    className="px-3 py-2 text-sm"
+                    onClick={() =>
+                      agir(() =>
+                        falta.mutateAsync({
+                          id: r.id,
+                          justificada: true,
+                          motivo: motivoFalta[r.id] || 'Justificada pela recepção',
+                        }),
+                      )
+                    }
+                  >
+                    Justificar falta
+                  </Button>
+                )}
               </div>
 
-              {r.status !== 'presente' && r.status !== 'falta' && (
+              {r.status !== 'presente' && !(r.status === 'falta' && r.justificada) && (
                 <Input
-                  placeholder="Motivo da falta (opcional)"
+                  placeholder="Motivo (opcional)"
                   className="mt-2 py-2 text-sm"
                   value={motivoFalta[r.id] ?? ''}
                   onChange={(e) =>

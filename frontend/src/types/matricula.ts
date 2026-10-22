@@ -53,6 +53,8 @@ export type FaltaPendente = {
   motivo: string | null
   repor_ate: string | null
   dias_restantes: number | null
+  /** `aviso`: o paciente avisou que não vinha (reserva cancelada com aviso). */
+  tipo: 'falta' | 'aviso'
   /** Janela em que faz sentido procurar vaga para esta falta. */
   procurar_de: string
   procurar_ate: string

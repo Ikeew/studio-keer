@@ -162,7 +162,9 @@ def buscar(db: DbSession, booking_id: int) -> Booking:
     return reserva
 
 
-def cancelar(db: DbSession, booking_id: int, *, motivo: str | None = None) -> Booking:
+def cancelar(
+    db: DbSession, booking_id: int, *, motivo: str | None = None, com_aviso: bool = False
+) -> Booking:
     """Cancela e LIBERA A VAGA.
 
     Não há prazo de antecedência, e cancelar nunca vira falta sozinho — a
@@ -171,6 +173,9 @@ def cancelar(db: DbSession, booking_id: int, *, motivo: str | None = None) -> Bo
 
     O valor do aviso antecipado é operacional: a posição sai do índice parcial
     e volta ao pool na mesma transação, podendo receber uma reposição.
+
+    `com_aviso` é o paciente que avisou que não vem: dá direito a repor
+    (docs/premissas.md, P5). Sem ele, é só uma reserva desfeita.
     """
     reserva = buscar(db, booking_id)
 
@@ -185,6 +190,7 @@ def cancelar(db: DbSession, booking_id: int, *, motivo: str | None = None) -> Bo
     reserva.status = StatusReserva.CANCELADA
     reserva.cancelado_em = datetime.now(UTC)
     reserva.motivo_cancelamento = motivo
+    reserva.cancelado_com_aviso = com_aviso
     db.flush()
     return reserva
 
