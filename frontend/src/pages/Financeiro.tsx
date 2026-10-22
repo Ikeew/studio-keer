@@ -173,8 +173,9 @@ export function Financeiro() {
           <table className="w-full">
             <thead className="bg-subtle text-left">
               <tr>
+                {/* Sem coluna Descrição, a pedido da equipe. O dado continua no
+                    banco, na busca e nos modais de pagamento e cancelamento. */}
                 <th className="p-4 font-medium">Paciente</th>
-                <th className="p-4 font-medium">Descrição</th>
                 <th className="p-4 font-medium">Valor</th>
                 <th className="p-4 font-medium">Vencimento</th>
                 <th className="p-4 font-medium">Status</th>
@@ -185,7 +186,6 @@ export function Financeiro() {
               {pagina.itens.map((c) => (
                 <tr key={c.id} className="border-t border-edge">
                   <td className="p-4">{c.paciente_nome}</td>
-                  <td className="p-4 text-muted">{c.descricao}</td>
                   <td className="p-4 font-medium">{reais(c.valor_centavos)}</td>
                   <td className="p-4">
                     {formatarData(c.vencimento)}
