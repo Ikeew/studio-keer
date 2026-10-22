@@ -55,6 +55,11 @@ class Charge(Base, TimestampMixin):
     __tablename__ = "charges"
     __table_args__ = (
         CheckConstraint("valor_centavos >= 0", name="valor_nao_negativo"),
+        # O custo extra sai do valor da própria cobrança: não pode passar dele.
+        CheckConstraint(
+            "custo_extra_centavos >= 0 AND custo_extra_centavos <= valor_centavos",
+            name="custo_extra_dentro_do_valor",
+        ),
         CheckConstraint("status <> 'pago' OR pago_em IS NOT NULL", name="pago_tem_data"),
         # Só venda de produto pode ser para quem não é paciente — e então
         # precisa de um nome para aparecer no financeiro.
@@ -103,6 +108,12 @@ class Charge(Base, TimestampMixin):
 
     # Dinheiro sempre em centavos, inteiro.
     valor_centavos: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Custos extras desta cobrança (ex.: taxa da maquininha), valor fixo em
+    # reais lançado pela proprietária. Valor líquido = valor - custo extra,
+    # calculado na leitura e nunca gravado. Só o admin vê e edita.
+    custo_extra_centavos: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
     vencimento: Mapped[date] = mapped_column(Date, nullable=False)
 
     status: Mapped[StatusCobranca] = mapped_column(

@@ -16,6 +16,7 @@ from app.models.user import Papel, User
 from app.schemas.financeiro import (
     CancelarCobranca,
     ChargeRead,
+    CustoExtra,
     MarcarPago,
     PackageRead,
     PaginaDeCobrancas,
@@ -37,10 +38,9 @@ OPERADORES = Depends(require_papel(Papel.ADMIN, Papel.RECEPCAO))
 SO_ADMIN = Depends(require_papel(Papel.ADMIN))
 
 
-def _para_leitura(
-    cobranca: Charge, paciente: Patient | None, *, com_cpf: bool = False
-) -> ChargeRead:
-    """`com_cpf` só para admin: CPF é dado pessoal e a nota é emitida por ela.
+def _para_leitura(cobranca: Charge, paciente: Patient | None, *, admin: bool = False) -> ChargeRead:
+    """`admin` liga o que só a proprietária vê: CPF (a nota é emitida por
+    ela), custo extra e valor líquido.
 
     Sem paciente (venda de produto no balcão), o nome é o do comprador.
     """
@@ -50,8 +50,10 @@ def _para_leitura(
         paciente_nome=(
             paciente.nome_completo if paciente else (cobranca.comprador_nome or COMPRADOR_PADRAO)
         ),
-        paciente_cpf=(
-            formatar_cpf(paciente.cpf) if com_cpf and paciente and paciente.cpf else None
+        paciente_cpf=(formatar_cpf(paciente.cpf) if admin and paciente and paciente.cpf else None),
+        custo_extra_centavos=cobranca.custo_extra_centavos if admin else None,
+        valor_liquido_centavos=(
+            cobranca.valor_centavos - cobranca.custo_extra_centavos if admin else None
         ),
         tipo=cobranca.tipo,
         descricao=cobranca.descricao,
@@ -65,12 +67,12 @@ def _para_leitura(
     )
 
 
-def cobranca_para_leitura(db: DbSession, cobranca: Charge, *, com_cpf: bool = False) -> ChargeRead:
+def cobranca_para_leitura(db: DbSession, cobranca: Charge, *, admin: bool = False) -> ChargeRead:
     paciente = db.get(Patient, cobranca.patient_id) if cobranca.patient_id is not None else None
-    return _para_leitura(cobranca, paciente, com_cpf=com_cpf)
+    return _para_leitura(cobranca, paciente, admin=admin)
 
 
-def _ve_cpf(usuario: User) -> bool:
+def _e_admin(usuario: User) -> bool:
     return usuario.papel is Papel.ADMIN
 
 
@@ -91,7 +93,7 @@ def listar(
         db, filtro=filtro, busca=busca, pagina=pagina, tamanho=tamanho
     )
     return PaginaDeCobrancas(
-        itens=[_para_leitura(c, p, com_cpf=_ve_cpf(usuario)) for c, p in linhas],
+        itens=[_para_leitura(c, p, admin=_e_admin(usuario)) for c, p in linhas],
         total=total,
         pagina=pagina,
         tamanho=tamanho,
@@ -104,6 +106,7 @@ def totais(db: Db) -> TotaisRead:
     t = charge_service.totais(db)
     return TotaisRead(
         recebido_centavos=t.recebido_centavos,
+        recebido_liquido_centavos=t.recebido_liquido_centavos,
         pendente_centavos=t.pendente_centavos,
         vencido_centavos=t.vencido_centavos,
     )
@@ -116,7 +119,7 @@ def obter(charge_id: int, db: Db, usuario: CurrentUser) -> ChargeRead:
     Sem esta rota, pedir uma cobrança pelo id devolvia 405 — um erro que não
     diz nada a quem está integrando ou depurando.
     """
-    return cobranca_para_leitura(db, charge_service.buscar(db, charge_id), com_cpf=_ve_cpf(usuario))
+    return cobranca_para_leitura(db, charge_service.buscar(db, charge_id), admin=_e_admin(usuario))
 
 
 @router.post(
@@ -155,6 +158,16 @@ def desfazer_pagamento(charge_id: int, db: Db, usuario: CurrentUser) -> ChargeRe
     cobranca = charge_service.desfazer_pagamento(db, charge_id, registrado_por_id=usuario.id)
     db.commit()
     return cobranca_para_leitura(db, cobranca)
+
+
+@router.put("/charges/{charge_id}/custo-extra", response_model=ChargeRead, dependencies=[SO_ADMIN])
+def definir_custo_extra(charge_id: int, dados: CustoExtra, db: Db) -> ChargeRead:
+    """Custos extras da cobrança (valor fixo em reais). Só a proprietária."""
+    cobranca = charge_service.definir_custo_extra(
+        db, charge_id, custo_extra_centavos=dados.custo_extra_centavos
+    )
+    db.commit()
+    return cobranca_para_leitura(db, cobranca, admin=True)
 
 
 @router.delete("/charges/{charge_id}", response_model=ChargeRead, dependencies=[SO_ADMIN])

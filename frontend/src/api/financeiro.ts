@@ -77,6 +77,18 @@ export function useDesfazerPagamento() {
   )
 }
 
+/** Só admin: custos extras da cobrança, em centavos. Zero apaga. */
+export function useDefinirCustoExtra() {
+  return useAcaoFinanceira(
+    async (v: { id: number; centavos: number }) =>
+      (
+        await api.put<Cobranca>(`/charges/${v.id}/custo-extra`, {
+          custo_extra_centavos: v.centavos,
+        })
+      ).data,
+  )
+}
+
 export function useCancelarCobranca() {
   return useAcaoFinanceira(
     async (v: { id: number; motivo: string }) =>

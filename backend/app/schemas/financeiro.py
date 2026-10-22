@@ -21,6 +21,10 @@ class ChargeRead(BaseModel):
     competencia_inicio: date | None
     competencia_fim: date | None
     valor_centavos: int
+    #: Só para admin; None para os demais perfis.
+    custo_extra_centavos: int | None = None
+    #: valor - custo extra. Só para admin; None para os demais perfis.
+    valor_liquido_centavos: int | None = None
     vencimento: date
     status: StatusCobranca
     pago_em: datetime | None
@@ -55,6 +59,8 @@ class TotaisRead(BaseModel):
     """Os três cards do topo, como no print."""
 
     recebido_centavos: int
+    #: Recebido menos os custos extras das cobranças pagas.
+    recebido_liquido_centavos: int
     pendente_centavos: int
     vencido_centavos: int
 
@@ -63,6 +69,12 @@ class MarcarPago(BaseModel):
     #: Obrigatória: sem ela a baixa caía em "outro" calada e o gráfico de
     #: formas de pagamento mentia. Quem não sabe escolhe "outro" de propósito.
     forma_pagamento: FormaPagamento
+
+
+class CustoExtra(BaseModel):
+    """Custos extras da cobrança, em centavos. Zero apaga."""
+
+    custo_extra_centavos: int = Field(ge=0)
 
 
 class CancelarCobranca(BaseModel):

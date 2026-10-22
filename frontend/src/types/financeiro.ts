@@ -38,6 +38,10 @@ export type Cobranca = {
   competencia_inicio: string | null
   competencia_fim: string | null
   valor_centavos: number
+  /** Custos extras desta cobrança. Só vem para admin; null para os demais. */
+  custo_extra_centavos: number | null
+  /** valor − custo extra. Só vem para admin; null para os demais. */
+  valor_liquido_centavos: number | null
   vencimento: string
   status: StatusCobranca
   pago_em: string | null
@@ -56,6 +60,8 @@ export type PaginaDeCobrancas = {
 
 export type TotaisFinanceiros = {
   recebido_centavos: number
+  /** Recebido menos os custos extras das cobranças pagas. */
+  recebido_liquido_centavos: number
   pendente_centavos: number
   vencido_centavos: number
 }

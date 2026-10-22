@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import {
   useCancelarCobranca,
   useCobrancas,
+  useDefinirCustoExtra,
   useDesfazerPagamento,
   useGerarMensalidades,
   useMarcarPago,
@@ -18,7 +19,7 @@ import { Estoque } from '@/features/financeiro/Estoque'
 import { RegistrarPagamento } from '@/features/financeiro/RegistrarPagamento'
 import { VendaDePacote } from '@/features/financeiro/VendaDePacote'
 import { cn } from '@/lib/cn'
-import { data as formatarData, reais } from '@/lib/formato'
+import { data as formatarData, paraCentavos, reais } from '@/lib/formato'
 import { FILTROS, FORMA_LABEL, type Cobranca } from '@/types/financeiro'
 
 function CardDeTotal({
@@ -26,11 +27,13 @@ function CardDeTotal({
   valor,
   cor,
   alerta,
+  detalhe,
 }: {
   rotulo: string
   valor: number
   cor: string
   alerta?: boolean
+  detalhe?: string
 }) {
   return (
     <div className="rounded-card border border-edge bg-surface p-6 shadow-card">
@@ -52,6 +55,7 @@ function CardDeTotal({
       <p className={cn('mt-3 font-heading text-3xl font-semibold', cor)}>
         {reais(valor)}
       </p>
+      {detalhe && <p className="mt-1 text-sm text-muted">{detalhe}</p>}
     </div>
   )
 }
@@ -67,6 +71,10 @@ export function Financeiro() {
   const [pagando, setPagando] = useState<Cobranca | null>(null)
   const [cancelando, setCancelando] = useState<Cobranca | null>(null)
   const [motivo, setMotivo] = useState('')
+  const [custeando, setCusteando] = useState<Cobranca | null>(null)
+  const [custo, setCusto] = useState('')
+  const [erroCusto, setErroCusto] = useState<string | null>(null)
+  const definirCusto = useDefinirCustoExtra()
   const [aviso, setAviso] = useState<string | null>(null)
 
   useEffect(() => {
@@ -122,6 +130,9 @@ export function Financeiro() {
             rotulo="Total Recebido"
             valor={totais?.recebido_centavos ?? 0}
             cor="text-accent"
+            detalhe={
+              totais ? `${reais(totais.recebido_liquido_centavos)} líquido` : undefined
+            }
           />
           <CardDeTotal
             rotulo="Total Pendente"
@@ -185,6 +196,8 @@ export function Financeiro() {
                 {/* CPF para a nota fiscal: só a proprietária (a API também). */}
                 {ehAdmin && <th className="p-4 font-medium">CPF</th>}
                 <th className="p-4 font-medium">Valor</th>
+                {/* Valor líquido (menos custos extras): só a proprietária. */}
+                {ehAdmin && <th className="p-4 font-medium">Líquido</th>}
                 <th className="p-4 font-medium">Vencimento</th>
                 <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium">Pagamento</th>
@@ -201,6 +214,33 @@ export function Financeiro() {
                     </td>
                   )}
                   <td className="p-4 font-medium">{reais(c.valor_centavos)}</td>
+                  {ehAdmin && (
+                    <td className="whitespace-nowrap p-4">
+                      <button
+                        type="button"
+                        title="Lançar custos extras"
+                        onClick={() => {
+                          setCusteando(c)
+                          setErroCusto(null)
+                          setCusto(
+                            c.custo_extra_centavos
+                              ? (c.custo_extra_centavos / 100).toFixed(2).replace('.', ',')
+                              : '',
+                          )
+                        }}
+                        className="rounded text-left underline-offset-4 hover:underline"
+                      >
+                        <span className="block font-medium">
+                          {reais(c.valor_liquido_centavos ?? c.valor_centavos)}
+                        </span>
+                        <span className="block text-sm text-muted">
+                          {c.custo_extra_centavos
+                            ? `− ${reais(c.custo_extra_centavos)} de custos`
+                            : 'sem custos extras'}
+                        </span>
+                      </button>
+                    </td>
+                  )}
                   <td className="p-4">
                     {formatarData(c.vencimento)}
                     {c.vencida && (
@@ -312,6 +352,59 @@ export function Financeiro() {
             pagar={pagar}
             onPronto={() => setPagando(null)}
           />
+        )}
+      </Modal>
+
+      <Modal
+        aberto={custeando !== null}
+        titulo="Custos extras"
+        onFechar={() => setCusteando(null)}
+      >
+        {custeando && (
+          <div className="flex flex-col gap-4">
+            <p className="text-[15px]">
+              <strong>{custeando.descricao}</strong> de <strong>{custeando.paciente_nome}</strong>{' '}
+              · {reais(custeando.valor_centavos)}
+            </p>
+            <label htmlFor="custo-extra" className="text-sm font-medium">
+              Custos extras (R$) — ex.: taxa da maquininha
+            </label>
+            <input
+              id="custo-extra"
+              inputMode="decimal"
+              autoFocus
+              value={custo}
+              placeholder="0,00"
+              onChange={(e) => setCusto(e.target.value)}
+              className="w-full rounded-card border border-edge px-4 py-3 outline-none focus:border-brand"
+            />
+            <p className="text-sm text-muted">
+              Líquido: {reais(custeando.valor_centavos - (paraCentavos(custo) ?? 0))}. Em branco
+              ou zero apaga os custos.
+            </p>
+            {erroCusto && <Aviso>{erroCusto}</Aviso>}
+            <Button
+              disabled={definirCusto.isPending}
+              onClick={async () => {
+                setErroCusto(null)
+                try {
+                  await definirCusto.mutateAsync({
+                    id: custeando.id,
+                    centavos: paraCentavos(custo) ?? 0,
+                  })
+                  setCusteando(null)
+                } catch (e) {
+                  const d = (e as { response?: { data?: { detail?: unknown } } })?.response
+                    ?.data?.detail
+                  setErroCusto(
+                    typeof d === 'string' ? d : 'Não foi possível salvar os custos extras.',
+                  )
+                }
+              }}
+            >
+              Salvar
+            </Button>
+          </div>
         )}
       </Modal>
 

@@ -502,6 +502,17 @@ status = 'falta'
 É uma consulta com `NOT EXISTS` — nada é armazenado, nada sai de sincronia.
 É o que hoje vive na cabeça da Dra. Belanir.
 
+### Valor líquido da cobrança
+
+```
+valor_liquido = valor_centavos - custo_extra_centavos
+```
+
+`custo_extra_centavos` é lançado **por cobrança**, em valor fixo em reais
+(ex.: taxa da maquininha), pela proprietária — padrão 0, e CHECK impede que
+passe do valor. O líquido é calculado na leitura, nunca gravado. Custo extra,
+líquido e o "recebido líquido" dos totais só vão para o admin, na API.
+
 ---
 
 ## Índices e restrições

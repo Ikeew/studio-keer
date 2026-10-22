@@ -356,7 +356,12 @@ class TestRbac:
 
         assert r_recepcao.status_code == 403
         assert r_admin.status_code == 200
-        assert set(r_admin.json()) == {"recebido_centavos", "pendente_centavos", "vencido_centavos"}
+        assert set(r_admin.json()) == {
+            "recebido_centavos",
+            "recebido_liquido_centavos",
+            "pendente_centavos",
+            "vencido_centavos",
+        }
 
     def test_recepcao_continua_registrando_pagamento(
         self, client: TestClient, db: Session, recepcao: User
@@ -519,3 +524,96 @@ class TestCpfNoFinanceiro:
         itens = client.get("/api/v1/charges", headers=auth(t)).json()["itens"]
 
         assert itens[0]["paciente_cpf"] is None
+
+
+class TestValorLiquido:
+    """Valor líquido = valor - custos extras, por cobrança, em reais fixos.
+
+    Só a proprietária lança o custo e vê o líquido.
+    """
+
+    def _cobranca(self, db: Session, valor: int = 20_000) -> Charge:
+        cobranca = Charge(
+            patient_id=criar_paciente(db, "Paciente Liquido").id,
+            tipo=TipoCobranca.AVULSA,
+            descricao="Avaliação",
+            valor_centavos=valor,
+            vencimento=date.today(),
+        )
+        db.add(cobranca)
+        db.flush()
+        return cobranca
+
+    def test_admin_lanca_custo_e_ve_liquido(
+        self, client: TestClient, db: Session, admin: User
+    ) -> None:
+        cobranca = self._cobranca(db)
+        t = login(client, admin.email)
+
+        r = client.put(
+            f"/api/v1/charges/{cobranca.id}/custo-extra",
+            json={"custo_extra_centavos": 1_250},
+            headers=auth(t),
+        )
+        item = client.get("/api/v1/charges", headers=auth(t)).json()["itens"][0]
+
+        assert r.status_code == 200
+        assert item["custo_extra_centavos"] == 1_250
+        assert item["valor_liquido_centavos"] == 18_750
+        assert item["valor_centavos"] == 20_000, "o valor cobrado não muda"
+
+    def test_sem_custo_o_liquido_e_o_valor(
+        self, client: TestClient, db: Session, admin: User
+    ) -> None:
+        self._cobranca(db)
+        t = login(client, admin.email)
+
+        item = client.get("/api/v1/charges", headers=auth(t)).json()["itens"][0]
+
+        assert item["valor_liquido_centavos"] == 20_000
+
+    def test_custo_maior_que_o_valor_e_recusado(
+        self, client: TestClient, db: Session, admin: User
+    ) -> None:
+        cobranca = self._cobranca(db, valor=1_000)
+        t = login(client, admin.email)
+
+        r = client.put(
+            f"/api/v1/charges/{cobranca.id}/custo-extra",
+            json={"custo_extra_centavos": 1_001},
+            headers=auth(t),
+        )
+
+        assert r.status_code == 422
+
+    def test_recepcao_nao_ve_nem_lanca(
+        self, client: TestClient, db: Session, recepcao: User
+    ) -> None:
+        cobranca = self._cobranca(db)
+        cobranca.custo_extra_centavos = 500
+        db.flush()
+        t = login(client, recepcao.email)
+
+        item = client.get("/api/v1/charges", headers=auth(t)).json()["itens"][0]
+        r = client.put(
+            f"/api/v1/charges/{cobranca.id}/custo-extra",
+            json={"custo_extra_centavos": 0},
+            headers=auth(t),
+        )
+
+        assert item["custo_extra_centavos"] is None
+        assert item["valor_liquido_centavos"] is None
+        assert r.status_code == 403
+
+    def test_total_recebido_liquido(self, db: Session, recepcao: User) -> None:
+        paga = self._cobranca(db, valor=10_000)
+        charge_service.marcar_pago(db, paga.id, registrado_por_id=recepcao.id)
+        charge_service.definir_custo_extra(db, paga.id, custo_extra_centavos=300)
+        # Pendente não entra no recebido, nem o custo dela.
+        pendente = self._cobranca(db, valor=5_000)
+        charge_service.definir_custo_extra(db, pendente.id, custo_extra_centavos=100)
+
+        t = charge_service.totais(db)
+
+        assert t.recebido_centavos == 10_000
+        assert t.recebido_liquido_centavos == 9_700

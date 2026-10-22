@@ -6,6 +6,7 @@ uma reserva, e nada em `booking_service` olha para o status de uma cobrança.
 
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, and_, func, or_, select
@@ -193,6 +194,19 @@ def desfazer_pagamento(db: DbSession, charge_id: int, *, registrado_por_id: int)
     return cobranca
 
 
+def definir_custo_extra(db: DbSession, charge_id: int, *, custo_extra_centavos: int) -> Charge:
+    """Lança os custos extras da cobrança. Só o admin — a rota aplica o RBAC."""
+    cobranca = buscar(db, charge_id)
+    if custo_extra_centavos > cobranca.valor_centavos:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="O custo extra não pode ser maior que o valor da cobrança.",
+        )
+    cobranca.custo_extra_centavos = custo_extra_centavos
+    db.flush()
+    return cobranca
+
+
 def cancelar(
     db: DbSession,
     charge_id: int,
@@ -223,20 +237,23 @@ class Totais:
     """Os três cards do topo da tela, como no print."""
 
     recebido_centavos: int
+    recebido_liquido_centavos: int
     pendente_centavos: int
     vencido_centavos: int
 
 
 def totais(db: DbSession) -> Totais:
-    def soma(condicao: object) -> int:
+    def soma(condicao: object, coluna: Any = Charge.valor_centavos) -> int:
         return int(
             db.execute(
-                select(func.coalesce(func.sum(Charge.valor_centavos), 0)).where(condicao)  # type: ignore[arg-type]
+                select(func.coalesce(func.sum(coluna), 0)).where(condicao)  # type: ignore[arg-type]
             ).scalar_one()
         )
 
+    pago = Charge.status == StatusCobranca.PAGO
     return Totais(
-        recebido_centavos=soma(Charge.status == StatusCobranca.PAGO),
+        recebido_centavos=soma(pago),
+        recebido_liquido_centavos=soma(pago, Charge.valor_centavos - Charge.custo_extra_centavos),
         # Pendente inclui o vencido: é tudo que ainda não entrou no caixa.
         pendente_centavos=soma(Charge.status == StatusCobranca.PENDENTE),
         vencido_centavos=soma(vencida_sql()),
