@@ -128,6 +128,74 @@ class TestCapacidadeNaVendaDoHorario:
         assert not hasattr(matricula, "frequencia")
 
 
+class TestMatriculaJaNasceNaGrade:
+    """A grade não pode depender de alguém lembrar de atualizá-la à mão.
+
+    Matrícula criada sem sessão materializada é invisível na agenda E livre
+    para a disponibilidade de reposição, que só enxerga sessão materializada
+    — o horário parece vago meses antes de encher.
+    """
+
+    def test_criar_pela_api_ja_materializa_a_grade(
+        self, client: TestClient, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        criar_configuracao(db)
+        servico = criar_servico(db, nome="Pilates Nasce")
+        paciente = criar_paciente(db, "Entra Agora")
+        db.commit()
+
+        r = client.post(
+            "/api/v1/enrollments",
+            json={
+                "patient_id": paciente.id,
+                "service_id": servico.id,
+                "professional_id": instrutor.id,
+                "vigencia_inicio": str(date.today()),
+                "valor_mensal_centavos": 20_000,
+                "horarios": [{"dia_semana": SEGUNDA, "hora_inicio": "08:00:00"}],
+            },
+            headers=auth(login(client, recepcao.email)),
+        )
+        assert r.status_code == 201, r.text
+
+        reservas = db.execute(
+            select(func.count())
+            .select_from(Booking)
+            .where(
+                Booking.enrollment_id == r.json()["id"],
+                Booking.status != StatusReserva.CANCELADA,
+            )
+        ).scalar_one()
+        # 8 semanas de horizonte, um horário por semana.
+        assert reservas > 0
+
+    def test_gerar_grade_depois_nao_duplica(
+        self, client: TestClient, db: Session, instrutor: User, recepcao: User
+    ) -> None:
+        criar_configuracao(db)
+        servico = criar_servico(db, nome="Pilates Nasce Idem")
+        paciente = criar_paciente(db, "Entra Duas Vezes")
+        db.commit()
+        t = login(client, recepcao.email)
+
+        client.post(
+            "/api/v1/enrollments",
+            json={
+                "patient_id": paciente.id,
+                "service_id": servico.id,
+                "professional_id": instrutor.id,
+                "vigencia_inicio": str(date.today()),
+                "valor_mensal_centavos": 20_000,
+                "horarios": [{"dia_semana": SEGUNDA, "hora_inicio": "08:00:00"}],
+            },
+            headers=auth(t),
+        )
+        depois = client.post("/api/v1/enrollments/gerar-grade", headers=auth(t)).json()
+
+        assert depois["reservas_criadas"] == 0
+        assert depois["reservas_ja_existentes"] > 0
+
+
 class TestGeradorIdempotente:
     def _contar(self, db: Session) -> tuple[int, int]:
         sessoes = db.execute(select(func.count()).select_from(Sessao)).scalar_one()
