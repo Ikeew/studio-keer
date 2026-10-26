@@ -30,6 +30,8 @@ function useAcao<TVars, TResult>(fn: (v: TVars) => Promise<TResult>) {
       qc.invalidateQueries({ queryKey: ['agenda'] })
       qc.invalidateQueries({ queryKey: ['reposicoes'] })
       qc.invalidateQueries({ queryKey: ['saude-da-grade'] })
+      // A agenda do instrutor sai da mesma materialização.
+      qc.invalidateQueries({ queryKey: ['minha-agenda'] })
     },
   })
 }
