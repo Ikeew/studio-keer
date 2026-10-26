@@ -59,10 +59,12 @@ class TestJornadaDaRecepcao:
         assert matricula.status_code == 201, matricula.text
         assert matricula.json()["frequencia_semanal"] == 1
 
-        # 3. Gera a grade recorrente.
+        # 3. A grade recorrente já nasceu com a matrícula; rodar o gerador de
+        # novo não duplica nada — reencontra as reservas que já existem.
         grade = client.post("/api/v1/enrollments/gerar-grade", headers=auth(t))
         assert grade.status_code == 200
-        assert grade.json()["reservas_criadas"] > 0
+        assert grade.json()["reservas_criadas"] == 0
+        assert grade.json()["reservas_ja_existentes"] > 0
 
         # A agenda passa a mostrar o paciente.
         semana = client.get(
