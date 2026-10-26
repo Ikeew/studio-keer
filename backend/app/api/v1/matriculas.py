@@ -71,11 +71,15 @@ def listar(db: Db, patient_id: int | None = None) -> list[EnrollmentRead]:
     status_code=status.HTTP_201_CREATED,
     dependencies=[ESCRITA],
 )
-def criar(dados: EnrollmentCreate, db: Db) -> EnrollmentRead:
-    """Cria a matrícula.
+def criar(dados: EnrollmentCreate, db: Db, usuario: CurrentUser) -> EnrollmentRead:
+    """Cria a matrícula e já materializa a grade dela.
 
     Recusa com 409 se algum dos horários já tiver a turma completa de alunos
     fixos — é o ponto onde nasce o overbooking vendido no balcão.
+
+    A geração acontece aqui, na mesma transação: matrícula criada que não
+    aparece na agenda até alguém atualizar a grade à mão é o mesmo modo de
+    falha silencioso que o aviso de saúde da grade existe para evitar.
     """
     matricula = enrollment_service.criar(
         db,
@@ -86,6 +90,7 @@ def criar(dados: EnrollmentCreate, db: Db) -> EnrollmentRead:
         vigencia_fim=dados.vigencia_fim,
         valor_mensal_centavos=dados.valor_mensal_centavos,
         horarios=[(h.dia_semana, h.hora_inicio) for h in dados.horarios],
+        criado_por_id=usuario.id,
     )
     db.commit()
     return _para_leitura(db, matricula)
