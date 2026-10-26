@@ -214,8 +214,16 @@ def criar(
     valor_mensal_centavos: int,
     horarios: list[tuple[int, time]],
     vigencia_fim: date | None = None,
+    criado_por_id: int | None = None,
 ) -> Enrollment:
-    """Cria a matrícula, verificando a capacidade de CADA horário."""
+    """Cria a matrícula, verificando a capacidade de CADA horário.
+
+    Com `criado_por_id`, a grade daquela matrícula já nasce materializada —
+    mesma decisão de `reativar`. Sem isso a matrícula existe mas não aparece
+    em lugar nenhum até alguém lembrar de atualizar a grade à mão, e a
+    disponibilidade para reposição (que só enxerga sessão materializada)
+    continua achando que o horário está livre.
+    """
     if not horarios:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -253,6 +261,10 @@ def criar(
     )
     db.add(matricula)
     db.flush()
+
+    if criado_por_id is not None:
+        gerar_grade(db, criado_por_id=criado_por_id, enrollment_id=matricula.id)
+
     return matricula
 
 
